@@ -292,8 +292,10 @@ export const ListPostsResponseItem = zod.object({
   mediaUrl: zod.string().nullish(),
   mediaType: zod.string().nullish(),
   likeCount: zod.number(),
+  dislikeCount: zod.number(),
   commentCount: zod.number(),
   isLiked: zod.boolean(),
+  isDisliked: zod.boolean(),
   author: zod.object({
     id: zod.number(),
     username: zod.string(),
@@ -331,8 +333,10 @@ export const GetPostResponse = zod.object({
   mediaUrl: zod.string().nullish(),
   mediaType: zod.string().nullish(),
   likeCount: zod.number(),
+  dislikeCount: zod.number(),
   commentCount: zod.number(),
   isLiked: zod.boolean(),
+  isDisliked: zod.boolean(),
   author: zod.object({
     id: zod.number(),
     username: zod.string(),
@@ -367,6 +371,18 @@ export const LikePostParams = zod.object({
 export const LikePostResponse = zod.object({
   liked: zod.boolean(),
   likeCount: zod.number(),
+});
+
+/**
+ * @summary Dislike a post (toggle)
+ */
+export const DislikePostParams = zod.object({
+  postId: zod.coerce.number(),
+});
+
+export const DislikePostResponse = zod.object({
+  disliked: zod.boolean(),
+  dislikeCount: zod.number(),
 });
 
 /**
@@ -498,8 +514,10 @@ export const ListAdminPostsResponse = zod.object({
       mediaUrl: zod.string().nullish(),
       mediaType: zod.string().nullish(),
       likeCount: zod.number(),
+      dislikeCount: zod.number(),
       commentCount: zod.number(),
       isLiked: zod.boolean(),
+      isDisliked: zod.boolean(),
       author: zod.object({
         id: zod.number(),
         username: zod.string(),

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, postsTable, usersTable, likesTable, commentsTable, messagesTable } from "@workspace/db";
+import { db, postsTable, usersTable, likesTable, dislikesTable, commentsTable, messagesTable } from "@workspace/db";
 import { eq, desc, and, count, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
@@ -25,6 +25,11 @@ async function formatPost(post: typeof postsTable.$inferSelect, userId: number) 
     .from(likesTable)
     .where(eq(likesTable.postId, post.id));
 
+  const [{ dislikeCount }] = await db
+    .select({ dislikeCount: count() })
+    .from(dislikesTable)
+    .where(eq(dislikesTable.postId, post.id));
+
   const [{ commentCount }] = await db
     .select({ commentCount: count() })
     .from(commentsTable)
@@ -35,6 +40,11 @@ async function formatPost(post: typeof postsTable.$inferSelect, userId: number) 
     .from(likesTable)
     .where(and(eq(likesTable.postId, post.id), eq(likesTable.userId, userId)));
 
+  const userDislike = await db
+    .select()
+    .from(dislikesTable)
+    .where(and(eq(dislikesTable.postId, post.id), eq(dislikesTable.userId, userId)));
+
   return {
     id: post.id,
     userId: post.userId,
@@ -42,8 +52,10 @@ async function formatPost(post: typeof postsTable.$inferSelect, userId: number) 
     mediaUrl: post.mediaUrl,
     mediaType: post.mediaType,
     likeCount: Number(likeCount),
+    dislikeCount: Number(dislikeCount),
     commentCount: Number(commentCount),
     isLiked: userLike.length > 0,
+    isDisliked: userDislike.length > 0,
     author: formatUser(author),
     createdAt: post.createdAt.toISOString(),
   };
@@ -123,7 +135,7 @@ router.delete("/posts/:postId", requireAuth, async (req, res): Promise<void> => 
 router.post("/posts/:postId/like", requireAuth, async (req, res): Promise<void> => {
   const userId = req.userId!;
   const rawId = Array.isArray(req.params.postId) ? req.params.postId[0] : req.params.postId;
-  const postId = parseInt(rawId, 10);
+  const postId = parseInt(rawId as string, 10);
 
   const existing = await db
     .select()
@@ -135,6 +147,8 @@ router.post("/posts/:postId/like", requireAuth, async (req, res): Promise<void> 
     await db.delete(likesTable).where(and(eq(likesTable.postId, postId), eq(likesTable.userId, userId)));
     liked = false;
   } else {
+    // Remove dislike if exists when liking
+    await db.delete(dislikesTable).where(and(eq(dislikesTable.postId, postId), eq(dislikesTable.userId, userId)));
     await db.insert(likesTable).values({ postId, userId });
     liked = true;
   }
@@ -145,6 +159,35 @@ router.post("/posts/:postId/like", requireAuth, async (req, res): Promise<void> 
     .where(eq(likesTable.postId, postId));
 
   res.json({ liked, likeCount: Number(likeCount) });
+});
+
+router.post("/posts/:postId/dislike", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const rawId = Array.isArray(req.params.postId) ? req.params.postId[0] : req.params.postId;
+  const postId = parseInt(rawId as string, 10);
+
+  const existing = await db
+    .select()
+    .from(dislikesTable)
+    .where(and(eq(dislikesTable.postId, postId), eq(dislikesTable.userId, userId)));
+
+  let disliked: boolean;
+  if (existing.length > 0) {
+    await db.delete(dislikesTable).where(and(eq(dislikesTable.postId, postId), eq(dislikesTable.userId, userId)));
+    disliked = false;
+  } else {
+    // Remove like if exists when disliking
+    await db.delete(likesTable).where(and(eq(likesTable.postId, postId), eq(likesTable.userId, userId)));
+    await db.insert(dislikesTable).values({ postId, userId });
+    disliked = true;
+  }
+
+  const [{ dislikeCount }] = await db
+    .select({ dislikeCount: count() })
+    .from(dislikesTable)
+    .where(eq(dislikesTable.postId, postId));
+
+  res.json({ disliked, dislikeCount: Number(dislikeCount) });
 });
 
 router.get("/posts/:postId/comments", requireAuth, async (req, res): Promise<void> => {

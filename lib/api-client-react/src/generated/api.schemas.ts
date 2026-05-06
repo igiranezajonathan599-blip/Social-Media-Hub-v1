@@ -110,8 +110,10 @@ export interface Post {
   mediaUrl?: string | null;
   mediaType?: string | null;
   likeCount: number;
+  dislikeCount: number;
   commentCount: number;
   isLiked: boolean;
+  isDisliked: boolean;
   author: User;
   createdAt: string;
 }
@@ -138,6 +140,11 @@ export interface AddCommentBody {
 export interface LikeResponse {
   liked: boolean;
   likeCount: number;
+}
+
+export interface DislikeResponse {
+  disliked: boolean;
+  dislikeCount: number;
 }
 
 export interface FeedStats {

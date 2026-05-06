@@ -27,6 +27,7 @@ import type {
   ConversationSummary,
   CreateConversationBody,
   CreatePostBody,
+  DislikeResponse,
   EditMessageBody,
   FeedStats,
   HealthStatus,
@@ -1703,6 +1704,90 @@ export const useLikePost = <
   TContext
 > => {
   return useMutation(getLikePostMutationOptions(options));
+};
+
+/**
+ * @summary Dislike a post (toggle)
+ */
+export const getDislikePostUrl = (postId: number) => {
+  return `/api/posts/${postId}/dislike`;
+};
+
+export const dislikePost = async (
+  postId: number,
+  options?: RequestInit,
+): Promise<DislikeResponse> => {
+  return customFetch<DislikeResponse>(getDislikePostUrl(postId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getDislikePostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dislikePost>>,
+    TError,
+    { postId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof dislikePost>>,
+  TError,
+  { postId: number },
+  TContext
+> => {
+  const mutationKey = ["dislikePost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof dislikePost>>,
+    { postId: number }
+  > = (props) => {
+    const { postId } = props ?? {};
+
+    return dislikePost(postId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DislikePostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof dislikePost>>
+>;
+
+export type DislikePostMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Dislike a post (toggle)
+ */
+export const useDislikePost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dislikePost>>,
+    TError,
+    { postId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof dislikePost>>,
+  TError,
+  { postId: number },
+  TContext
+> => {
+  return useMutation(getDislikePostMutationOptions(options));
 };
 
 /**

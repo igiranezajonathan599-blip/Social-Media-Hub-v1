@@ -389,6 +389,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/LikeResponse"
 
+  /posts/{postId}/dislike:
+    post:
+      operationId: dislikePost
+      tags: [posts]
+      summary: Dislike a post (toggle)
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Dislike toggled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DislikeResponse"
+
   /posts/{postId}/comments:
     get:
       operationId: listComments
@@ -761,15 +780,19 @@ components:
           nullable: true
         likeCount:
           type: integer
+        dislikeCount:
+          type: integer
         commentCount:
           type: integer
         isLiked:
+          type: boolean
+        isDisliked:
           type: boolean
         author:
           $ref: "#/components/schemas/User"
         createdAt:
           type: string
-      required: [id, userId, content, likeCount, commentCount, isLiked, author, createdAt]
+      required: [id, userId, content, likeCount, dislikeCount, commentCount, isLiked, isDisliked, author, createdAt]
 
     CreatePostBody:
       type: object
@@ -814,6 +837,15 @@ components:
         likeCount:
           type: integer
       required: [liked, likeCount]
+
+    DislikeResponse:
+      type: object
+      properties:
+        disliked:
+          type: boolean
+        dislikeCount:
+          type: integer
+      required: [disliked, dislikeCount]
 
     FeedStats:
       type: object

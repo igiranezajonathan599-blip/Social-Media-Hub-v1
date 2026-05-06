@@ -26,6 +26,14 @@ export const likesTable = pgTable("likes", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const dislikesTable = pgTable("dislikes", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull().references(() => postsTable.id),
+  userId: integer("user_id").notNull().references(() => usersTable.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Post = typeof postsTable.$inferSelect;
 export type Comment = typeof commentsTable.$inferSelect;
 export type Like = typeof likesTable.$inferSelect;
+export type Dislike = typeof dislikesTable.$inferSelect;

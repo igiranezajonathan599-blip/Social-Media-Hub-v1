@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { formatDistanceToNow } from "date-fns";
-import { Heart, MessageCircle, MoreHorizontal, Send, Image as ImageIcon } from "lucide-react";
-import { 
-  useLikePost, 
-  useListComments, 
-  useAddComment, 
+import { Heart, ThumbsDown, MessageCircle, MoreHorizontal, Send } from "lucide-react";
+import {
+  useLikePost,
+  useDislikePost,
+  useListComments,
+  useAddComment,
   useDeletePost,
-  getGetPostQueryKey,
   getListPostsQueryKey,
-  getListCommentsQueryKey
+  getListCommentsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,59 +20,109 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
-export default function PostCard({ post, currentUserId }: { post: any; currentUserId: number }) {
+export default function PostCard({
+  post,
+  currentUserId,
+  currentUser,
+}: {
+  post: any;
+  currentUserId: number;
+  currentUser?: any;
+}) {
   const queryClient = useQueryClient();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
-  
+
   const likePost = useLikePost();
+  const dislikePost = useDislikePost();
   const deletePost = useDeletePost();
   const addComment = useAddComment();
-  
+
   const { data: comments = [], isLoading: isLoadingComments } = useListComments(post.id, {
     query: {
       enabled: showComments,
-      queryKey: getListCommentsQueryKey(post.id)
-    }
+      queryKey: getListCommentsQueryKey(post.id),
+    },
   });
 
   const handleLike = () => {
-    likePost.mutate({ data: { postId: post.id } } as any, {
-      onSuccess: (data) => {
-        // Optimistic update
-        queryClient.setQueryData(getListPostsQueryKey(), (old: any) => {
-          if (!old) return old;
-          return old.map((p: any) => {
-            if (p.id === post.id) {
-              return { ...p, isLiked: data.liked, likeCount: data.likeCount };
-            }
-            return p;
+    likePost.mutate(
+      { postId: post.id },
+      {
+        onSuccess: (data) => {
+          queryClient.setQueryData(getListPostsQueryKey(), (old: any) => {
+            if (!old) return old;
+            return old.map((p: any) => {
+              if (p.id === post.id) {
+                const wasDisliked = p.isDisliked;
+                return {
+                  ...p,
+                  isLiked: data.liked,
+                  likeCount: data.likeCount,
+                  isDisliked: data.liked ? false : p.isDisliked,
+                  dislikeCount: data.liked && wasDisliked ? Math.max(0, p.dislikeCount - 1) : p.dislikeCount,
+                };
+              }
+              return p;
+            });
           });
-        });
+        },
       }
-    });
+    );
+  };
+
+  const handleDislike = () => {
+    dislikePost.mutate(
+      { postId: post.id },
+      {
+        onSuccess: (data) => {
+          queryClient.setQueryData(getListPostsQueryKey(), (old: any) => {
+            if (!old) return old;
+            return old.map((p: any) => {
+              if (p.id === post.id) {
+                const wasLiked = p.isLiked;
+                return {
+                  ...p,
+                  isDisliked: data.disliked,
+                  dislikeCount: data.dislikeCount,
+                  isLiked: data.disliked ? false : p.isLiked,
+                  likeCount: data.disliked && wasLiked ? Math.max(0, p.likeCount - 1) : p.likeCount,
+                };
+              }
+              return p;
+            });
+          });
+        },
+      }
+    );
   };
 
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim()) return;
-    
-    addComment.mutate({ data: { postId: post.id, content: commentText.trim() } } as any, {
-      onSuccess: () => {
-        setCommentText("");
-        queryClient.invalidateQueries({ queryKey: getListCommentsQueryKey(post.id) });
-        queryClient.invalidateQueries({ queryKey: getListPostsQueryKey() });
+
+    addComment.mutate(
+      { postId: post.id, data: { content: commentText.trim() } },
+      {
+        onSuccess: () => {
+          setCommentText("");
+          queryClient.invalidateQueries({ queryKey: getListCommentsQueryKey(post.id) });
+          queryClient.invalidateQueries({ queryKey: getListPostsQueryKey() });
+        },
       }
-    });
+    );
   };
 
   const handleDelete = () => {
     if (confirm("Are you sure you want to delete this post?")) {
-      deletePost.mutate({ data: { postId: post.id } } as any, {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListPostsQueryKey() });
+      deletePost.mutate(
+        { postId: post.id },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: getListPostsQueryKey() });
+          },
         }
-      });
+      );
     }
   };
 
@@ -84,7 +134,9 @@ export default function PostCard({ post, currentUserId }: { post: any; currentUs
         <Link href={`/profile/${post.author.id}`}>
           <Avatar className="h-10 w-10 cursor-pointer border border-primary/10">
             <AvatarImage src={post.author.avatarUrl || ""} />
-            <AvatarFallback className="bg-secondary text-secondary-foreground">{post.author.displayName?.substring(0, 2).toUpperCase()}</AvatarFallback>
+            <AvatarFallback className="bg-secondary text-secondary-foreground">
+              {post.author.displayName?.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
           </Avatar>
         </Link>
         <div className="flex-1 flex flex-col">
@@ -104,7 +156,10 @@ export default function PostCard({ post, currentUserId }: { post: any; currentUs
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-40 border-border/50 bg-popover/95 backdrop-blur-xl">
-                    <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer">
+                    <DropdownMenuItem
+                      onClick={handleDelete}
+                      className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
+                    >
                       Delete Post
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -115,10 +170,10 @@ export default function PostCard({ post, currentUserId }: { post: any; currentUs
           <span className="text-sm text-muted-foreground">@{post.author.username}</span>
         </div>
       </CardHeader>
-      
+
       <CardContent className="p-4 pt-0 space-y-4">
         <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">{post.content}</p>
-        
+
         {post.mediaUrl && (
           <div className="rounded-xl overflow-hidden border border-border/50 bg-black/20 mt-3 max-h-[500px] flex items-center justify-center">
             {post.mediaType?.startsWith("video/") ? (
@@ -129,15 +184,17 @@ export default function PostCard({ post, currentUserId }: { post: any; currentUs
           </div>
         )}
       </CardContent>
-      
+
       <CardFooter className="p-0 flex flex-col items-stretch">
         <Separator className="bg-border/50" />
         <div className="flex items-center justify-between p-2">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             className={cn(
-              "flex-1 flex gap-2 h-10 transition-colors", 
-              post.isLiked ? "text-primary hover:text-primary hover:bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              "flex-1 flex gap-2 h-10 transition-colors",
+              post.isLiked
+                ? "text-primary hover:text-primary hover:bg-primary/10"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
             )}
             onClick={handleLike}
             disabled={likePost.isPending}
@@ -145,12 +202,31 @@ export default function PostCard({ post, currentUserId }: { post: any; currentUs
             <Heart className={cn("h-5 w-5 transition-transform active:scale-75", post.isLiked && "fill-current")} />
             <span className="font-medium">{post.likeCount > 0 ? post.likeCount : "Like"}</span>
           </Button>
-          
-          <Button 
-            variant="ghost" 
+
+          <Button
+            variant="ghost"
             className={cn(
               "flex-1 flex gap-2 h-10 transition-colors",
-              showComments ? "text-primary bg-primary/5" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              post.isDisliked
+                ? "text-orange-400 hover:text-orange-400 hover:bg-orange-400/10"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+            )}
+            onClick={handleDislike}
+            disabled={dislikePost.isPending}
+          >
+            <ThumbsDown
+              className={cn("h-5 w-5 transition-transform active:scale-75", post.isDisliked && "fill-current")}
+            />
+            <span className="font-medium">{post.dislikeCount > 0 ? post.dislikeCount : "Dislike"}</span>
+          </Button>
+
+          <Button
+            variant="ghost"
+            className={cn(
+              "flex-1 flex gap-2 h-10 transition-colors",
+              showComments
+                ? "text-primary bg-primary/5"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
             )}
             onClick={() => setShowComments(!showComments)}
           >
@@ -162,23 +238,31 @@ export default function PostCard({ post, currentUserId }: { post: any; currentUs
         {showComments && (
           <div className="px-4 pb-4 animate-in fade-in slide-in-from-top-2 duration-200">
             <Separator className="mb-4 bg-border/30" />
-            
+
             <div className="space-y-4 mb-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
               {isLoadingComments ? (
-                <div className="flex justify-center p-4"><div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>
+                <div className="flex justify-center p-4">
+                  <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                </div>
               ) : comments.length > 0 ? (
                 comments.map((comment: any) => (
                   <div key={comment.id} className="flex gap-3 group">
                     <Avatar className="h-8 w-8 shrink-0">
                       <AvatarImage src={comment.author.avatarUrl || ""} />
-                      <AvatarFallback className="text-[10px]">{comment.author.displayName?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                      <AvatarFallback className="text-[10px]">
+                        {comment.author.displayName?.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 bg-secondary/50 rounded-2xl rounded-tl-sm px-4 py-2">
                       <div className="flex items-baseline justify-between mb-1 gap-2">
                         <Link href={`/profile/${comment.author.id}`}>
-                          <span className="font-semibold text-sm cursor-pointer hover:underline">{comment.author.displayName}</span>
+                          <span className="font-semibold text-sm cursor-pointer hover:underline">
+                            {comment.author.displayName}
+                          </span>
                         </Link>
-                        <span className="text-[10px] text-muted-foreground shrink-0">{formatDistanceToNow(new Date(comment.createdAt))}</span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {formatDistanceToNow(new Date(comment.createdAt))}
+                        </span>
                       </div>
                       <p className="text-sm text-foreground/90">{comment.content}</p>
                     </div>
@@ -191,19 +275,21 @@ export default function PostCard({ post, currentUserId }: { post: any; currentUs
 
             <form onSubmit={handleAddComment} className="flex gap-2 items-end">
               <Avatar className="h-9 w-9 shrink-0">
-                <AvatarImage src={""} />
-                <AvatarFallback className="bg-primary/20 text-primary text-xs">ME</AvatarFallback>
+                <AvatarImage src={currentUser?.avatarUrl || ""} />
+                <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                  {currentUser?.displayName?.substring(0, 2).toUpperCase() ?? "ME"}
+                </AvatarFallback>
               </Avatar>
               <div className="flex-1 relative flex items-center">
-                <Input 
+                <Input
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="Write a comment..." 
+                  placeholder="Write a comment..."
                   className="rounded-full bg-secondary/30 border-transparent focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary pr-10 h-10"
                 />
-                <Button 
-                  type="submit" 
-                  size="icon" 
+                <Button
+                  type="submit"
+                  size="icon"
                   className="absolute right-1 h-8 w-8 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground transition-transform active:scale-95"
                   disabled={!commentText.trim() || addComment.isPending}
                 >

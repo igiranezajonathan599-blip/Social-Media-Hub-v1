@@ -153,7 +153,7 @@ export default function Feed({ user }: { user: any }) {
               </div>
             ) : posts && posts.length > 0 ? (
               posts.map((post) => (
-                <PostCard key={post.id} post={post} currentUserId={user.id} />
+                <PostCard key={post.id} post={post} currentUserId={user.id} currentUser={user} />
               ))
             ) : (
               <div className="py-20 text-center flex flex-col items-center justify-center text-muted-foreground bg-card/30 rounded-2xl border border-border/30">
