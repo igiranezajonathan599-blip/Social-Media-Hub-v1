@@ -1,6 +1,6 @@
 # Message & Media Hub
 
-A full-stack social communication platform where users can post, like, comment, send direct messages, and manage their profiles.
+A full-stack social communication platform where users can post, like, comment, send direct messages (with images/video/stickers), and manage their profiles. Admins get a dashboard to manage users and posts.
 
 ## Run & Operate
 
@@ -26,28 +26,32 @@ A full-stack social communication platform where users can post, like, comment, 
 
 - `lib/api-spec/openapi.yaml` — source of truth for all API contracts
 - `lib/db/src/schema/` — Drizzle schema (users, posts, comments, likes, conversations, messages)
-- `lib/api-zod/src/generated/` — generated Zod schemas (do not edit)
+- `lib/api-zod/src/generated/` — generated Zod schemas (do not edit); index exports only `./generated/api`
 - `lib/api-client-react/src/generated/api.ts` — generated React Query hooks (do not edit)
-- `artifacts/api-server/src/routes/` — Express route handlers
-- `artifacts/api-server/src/middlewares/auth.ts` — JWT sign/verify/requireAuth
-- `artifacts/hub/src/pages/` — feed, login, register, messages, profile, profile-edit
-- `artifacts/hub/src/components/` — layout, post-card, UI primitives
+- `artifacts/api-server/src/routes/` — Express route handlers (auth, posts, conversations, admin)
+- `artifacts/api-server/src/middlewares/auth.ts` — JWT sign/verify/requireAuth; loads isAdmin from DB
+- `artifacts/hub/src/pages/` — feed, login, register, messages, profile, profile-edit, admin
+- `artifacts/hub/src/components/` — layout (admin nav link), post-card, UI primitives
+- `artifacts/hub/src/data/stickers.ts` — 100 stickers in 10 categories
 - `artifacts/hub/src/index.css` — jewel-toned dark theme (sapphire/magenta)
 
 ## Architecture decisions
 
-- Contract-first API: OpenAPI spec → Orval codegen → typed React Query hooks + Zod validators used in both server and client
-- JWT stored in `localStorage` as `hub_token`; `custom-fetch.ts` auto-attaches Bearer header on every request and redirects to `/login` on 401
-- All DB mutations flow through Drizzle ORM; raw SQL is avoided
-- `lib/api-zod` barrel exports only `./generated/api` — do NOT add `./generated/types` or `./generated/api.schemas`
-- Demo seed users: alex@example.com / maya@example.com / jordan@example.com — all use password `password123`
+- Contract-first API: OpenAPI spec → Orval codegen → typed React Query hooks + Zod validators
+- JWT stored in `localStorage` as `hub_token`; `custom-fetch.ts` auto-attaches Bearer + redirects to `/login` on 401
+- All DB mutations flow through Drizzle ORM; raw SQL avoided
+- Orval zod target uses `mode: "single"` (writes to `generated/api.ts` directly, no index generation); api-client-react uses `mode: "split"`
+- `lib/api-zod` barrel exports only `export * from "./generated/api"` — do NOT add other exports
+- Admin routes protected by `requireAdmin` middleware; admin flag loaded from DB on every request
+- Demo seed users: alex@example.com (admin) / maya@example.com / jordan@example.com — all use password `password123`
 
 ## Product
 
 - **Feed** — create posts (text + image URL), like/unlike, comment in-thread
-- **Messages** — direct message conversations with real-time-style polling (3s), search users to start new conversations
-- **Profiles** — view any user's posts, bio, avatar; edit your own display name, bio, and avatar URL
+- **Messages** — direct messages with image/video URL sending, 100-sticker picker (10 categories), edit message (hover → pencil icon), delete message (hover → trash icon), real-time polling (3s)
+- **Profiles** — view any user's posts, bio, avatar; edit own display name, bio, avatar URL
 - **Auth** — JWT-based register/login/logout; protected routes redirect unauthenticated users to `/login`
+- **Admin Dashboard** — stats overview (users/posts/messages/likes), user management (toggle admin/delete), post moderation (delete); only visible to admin users
 
 ## User preferences
 
@@ -56,9 +60,11 @@ A full-stack social communication platform where users can post, like, comment, 
 ## Gotchas
 
 - Always run `pnpm --filter @workspace/api-spec run codegen` after changing `openapi.yaml`
-- API server runs on port 8080, not 5000 (replit.md had a typo)
+- API server runs on port 8080, not 5000
 - Do not use anonymous arrow functions with hooks in JSX render props — extract into named components
-- Demo conversation IDs start at 3 (1 and 2 were test rows that were deleted)
+- Use `req.params["paramName"] as string` not `req.params.paramName` to avoid TS2345 (string | string[])
+- Demo conversation IDs start at 3+ (1 and 2 were test rows that were deleted)
+- alex@example.com is the admin demo user (is_admin = true in DB)
 
 ## Pointers
 

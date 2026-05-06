@@ -42,6 +42,7 @@ export const LoginResponse = zod.object({
     email: zod.string(),
     bio: zod.string().nullish(),
     avatarUrl: zod.string().nullish(),
+    isAdmin: zod.boolean().optional(),
     createdAt: zod.string(),
   }),
   token: zod.string(),
@@ -64,6 +65,7 @@ export const GetMeResponse = zod.object({
   email: zod.string(),
   bio: zod.string().nullish(),
   avatarUrl: zod.string().nullish(),
+  isAdmin: zod.boolean().optional(),
   createdAt: zod.string(),
 });
 
@@ -81,6 +83,7 @@ export const SearchUsersResponseItem = zod.object({
   email: zod.string(),
   bio: zod.string().nullish(),
   avatarUrl: zod.string().nullish(),
+  isAdmin: zod.boolean().optional(),
   createdAt: zod.string(),
 });
 export const SearchUsersResponse = zod.array(SearchUsersResponseItem);
@@ -98,6 +101,7 @@ export const GetUserByIdResponse = zod.object({
   displayName: zod.string(),
   bio: zod.string().nullish(),
   avatarUrl: zod.string().nullish(),
+  isAdmin: zod.boolean().optional(),
   postCount: zod.number(),
   createdAt: zod.string(),
 });
@@ -118,6 +122,7 @@ export const UpdateProfileResponse = zod.object({
   email: zod.string(),
   bio: zod.string().nullish(),
   avatarUrl: zod.string().nullish(),
+  isAdmin: zod.boolean().optional(),
   createdAt: zod.string(),
 });
 
@@ -133,6 +138,7 @@ export const ListConversationsResponseItem = zod.object({
     email: zod.string(),
     bio: zod.string().nullish(),
     avatarUrl: zod.string().nullish(),
+    isAdmin: zod.boolean().optional(),
     createdAt: zod.string(),
   }),
   lastMessage: zod
@@ -143,7 +149,10 @@ export const ListConversationsResponseItem = zod.object({
       content: zod.string(),
       mediaUrl: zod.string().nullish(),
       mediaType: zod.string().nullish(),
+      isEdited: zod.boolean().optional(),
+      isDeleted: zod.boolean().optional(),
       createdAt: zod.string(),
+      editedAt: zod.string().nullish(),
       sender: zod.object({
         id: zod.number(),
         username: zod.string(),
@@ -151,6 +160,7 @@ export const ListConversationsResponseItem = zod.object({
         email: zod.string(),
         bio: zod.string().nullish(),
         avatarUrl: zod.string().nullish(),
+        isAdmin: zod.boolean().optional(),
         createdAt: zod.string(),
       }),
     })
@@ -190,7 +200,10 @@ export const ListMessagesResponseItem = zod.object({
   content: zod.string(),
   mediaUrl: zod.string().nullish(),
   mediaType: zod.string().nullish(),
+  isEdited: zod.boolean().optional(),
+  isDeleted: zod.boolean().optional(),
   createdAt: zod.string(),
+  editedAt: zod.string().nullish(),
   sender: zod.object({
     id: zod.number(),
     username: zod.string(),
@@ -198,6 +211,7 @@ export const ListMessagesResponseItem = zod.object({
     email: zod.string(),
     bio: zod.string().nullish(),
     avatarUrl: zod.string().nullish(),
+    isAdmin: zod.boolean().optional(),
     createdAt: zod.string(),
   }),
 });
@@ -211,9 +225,56 @@ export const SendMessageParams = zod.object({
 });
 
 export const SendMessageBody = zod.object({
-  content: zod.string(),
+  content: zod.string().optional(),
   mediaUrl: zod.string().optional(),
   mediaType: zod.string().optional(),
+});
+
+/**
+ * @summary Edit a message
+ */
+export const EditMessageParams = zod.object({
+  conversationId: zod.coerce.number(),
+  messageId: zod.coerce.number(),
+});
+
+export const EditMessageBody = zod.object({
+  content: zod.string(),
+});
+
+export const EditMessageResponse = zod.object({
+  id: zod.number(),
+  conversationId: zod.number(),
+  senderId: zod.number(),
+  content: zod.string(),
+  mediaUrl: zod.string().nullish(),
+  mediaType: zod.string().nullish(),
+  isEdited: zod.boolean().optional(),
+  isDeleted: zod.boolean().optional(),
+  createdAt: zod.string(),
+  editedAt: zod.string().nullish(),
+  sender: zod.object({
+    id: zod.number(),
+    username: zod.string(),
+    displayName: zod.string(),
+    email: zod.string(),
+    bio: zod.string().nullish(),
+    avatarUrl: zod.string().nullish(),
+    isAdmin: zod.boolean().optional(),
+    createdAt: zod.string(),
+  }),
+});
+
+/**
+ * @summary Delete a message (soft delete)
+ */
+export const DeleteMessageParams = zod.object({
+  conversationId: zod.coerce.number(),
+  messageId: zod.coerce.number(),
+});
+
+export const DeleteMessageResponse = zod.object({
+  message: zod.string(),
 });
 
 /**
@@ -240,6 +301,7 @@ export const ListPostsResponseItem = zod.object({
     email: zod.string(),
     bio: zod.string().nullish(),
     avatarUrl: zod.string().nullish(),
+    isAdmin: zod.boolean().optional(),
     createdAt: zod.string(),
   }),
   createdAt: zod.string(),
@@ -278,6 +340,7 @@ export const GetPostResponse = zod.object({
     email: zod.string(),
     bio: zod.string().nullish(),
     avatarUrl: zod.string().nullish(),
+    isAdmin: zod.boolean().optional(),
     createdAt: zod.string(),
   }),
   createdAt: zod.string(),
@@ -325,6 +388,7 @@ export const ListCommentsResponseItem = zod.object({
     email: zod.string(),
     bio: zod.string().nullish(),
     avatarUrl: zod.string().nullish(),
+    isAdmin: zod.boolean().optional(),
     createdAt: zod.string(),
   }),
   createdAt: zod.string(),
@@ -349,4 +413,118 @@ export const GetFeedStatsResponse = zod.object({
   totalPosts: zod.number(),
   totalMessages: zod.number(),
   activeUsers: zod.number(),
+});
+
+/**
+ * @summary Get admin dashboard statistics
+ */
+export const GetAdminStatsResponse = zod.object({
+  totalUsers: zod.number(),
+  totalPosts: zod.number(),
+  totalMessages: zod.number(),
+  totalConversations: zod.number(),
+  newUsersToday: zod.number(),
+  newPostsToday: zod.number(),
+});
+
+/**
+ * @summary List all users (admin only)
+ */
+export const ListAdminUsersQueryParams = zod.object({
+  page: zod.coerce.number().optional(),
+  q: zod.coerce.string().optional(),
+});
+
+export const ListAdminUsersResponse = zod.object({
+  users: zod.array(
+    zod.object({
+      id: zod.number(),
+      username: zod.string(),
+      displayName: zod.string(),
+      email: zod.string(),
+      bio: zod.string().nullish(),
+      avatarUrl: zod.string().nullish(),
+      isAdmin: zod.boolean().optional(),
+      createdAt: zod.string(),
+    }),
+  ),
+  total: zod.number(),
+  page: zod.number(),
+  pageSize: zod.number(),
+});
+
+/**
+ * @summary Delete a user (admin only)
+ */
+export const AdminDeleteUserParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const AdminDeleteUserResponse = zod.object({
+  message: zod.string(),
+});
+
+/**
+ * @summary Toggle admin status for a user
+ */
+export const AdminToggleAdminParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const AdminToggleAdminResponse = zod.object({
+  id: zod.number(),
+  username: zod.string(),
+  displayName: zod.string(),
+  email: zod.string(),
+  bio: zod.string().nullish(),
+  avatarUrl: zod.string().nullish(),
+  isAdmin: zod.boolean().optional(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary List all posts (admin only)
+ */
+export const ListAdminPostsQueryParams = zod.object({
+  page: zod.coerce.number().optional(),
+});
+
+export const ListAdminPostsResponse = zod.object({
+  posts: zod.array(
+    zod.object({
+      id: zod.number(),
+      userId: zod.number(),
+      content: zod.string(),
+      mediaUrl: zod.string().nullish(),
+      mediaType: zod.string().nullish(),
+      likeCount: zod.number(),
+      commentCount: zod.number(),
+      isLiked: zod.boolean(),
+      author: zod.object({
+        id: zod.number(),
+        username: zod.string(),
+        displayName: zod.string(),
+        email: zod.string(),
+        bio: zod.string().nullish(),
+        avatarUrl: zod.string().nullish(),
+        isAdmin: zod.boolean().optional(),
+        createdAt: zod.string(),
+      }),
+      createdAt: zod.string(),
+    }),
+  ),
+  total: zod.number(),
+  page: zod.number(),
+  pageSize: zod.number(),
+});
+
+/**
+ * @summary Delete a post (admin only)
+ */
+export const AdminDeletePostParams = zod.object({
+  postId: zod.coerce.number(),
+});
+
+export const AdminDeletePostResponse = zod.object({
+  message: zod.string(),
 });

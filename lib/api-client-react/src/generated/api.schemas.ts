@@ -34,6 +34,7 @@ export interface User {
   email: string;
   bio?: string | null;
   avatarUrl?: string | null;
+  isAdmin?: boolean;
   createdAt: string;
 }
 
@@ -48,6 +49,7 @@ export interface UserProfile {
   displayName: string;
   bio?: string | null;
   avatarUrl?: string | null;
+  isAdmin?: boolean;
   postCount: number;
   createdAt: string;
 }
@@ -72,7 +74,10 @@ export interface Message {
   content: string;
   mediaUrl?: string | null;
   mediaType?: string | null;
+  isEdited?: boolean;
+  isDeleted?: boolean;
   createdAt: string;
+  editedAt?: string | null;
   sender: User;
 }
 
@@ -89,9 +94,13 @@ export interface CreateConversationBody {
 }
 
 export interface SendMessageBody {
-  content: string;
+  content?: string;
   mediaUrl?: string;
   mediaType?: string;
+}
+
+export interface EditMessageBody {
+  content: string;
 }
 
 export interface Post {
@@ -137,6 +146,29 @@ export interface FeedStats {
   activeUsers: number;
 }
 
+export interface AdminStats {
+  totalUsers: number;
+  totalPosts: number;
+  totalMessages: number;
+  totalConversations: number;
+  newUsersToday: number;
+  newPostsToday: number;
+}
+
+export interface AdminUsersResponse {
+  users: User[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminPostsResponse {
+  posts: Post[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export type SearchUsersParams = {
   q?: string;
 };
@@ -153,5 +185,14 @@ export type ListPostsParams = {
    * Filter by user
    */
   userId?: number;
+  page?: number;
+};
+
+export type ListAdminUsersParams = {
+  page?: number;
+  q?: string;
+};
+
+export type ListAdminPostsParams = {
   page?: number;
 };

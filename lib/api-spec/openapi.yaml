@@ -20,6 +20,8 @@ tags:
     description: Message operations
   - name: posts
     description: Post and media operations
+  - name: admin
+    description: Admin operations
 
 paths:
   /healthz:
@@ -238,6 +240,58 @@ paths:
               schema:
                 $ref: "#/components/schemas/Message"
 
+  /conversations/{conversationId}/messages/{messageId}:
+    patch:
+      operationId: editMessage
+      tags: [messages]
+      summary: Edit a message
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditMessageBody"
+      responses:
+        "200":
+          description: Message updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+    delete:
+      operationId: deleteMessage
+      tags: [messages]
+      summary: Delete a message (soft delete)
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
   /posts:
     get:
       operationId: listPosts
@@ -392,6 +446,114 @@ paths:
               schema:
                 $ref: "#/components/schemas/FeedStats"
 
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Get admin dashboard statistics
+      responses:
+        "200":
+          description: Admin stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      tags: [admin]
+      summary: List all users (admin only)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User list with pagination
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUsersResponse"
+
+  /admin/users/{userId}:
+    delete:
+      operationId: adminDeleteUser
+      tags: [admin]
+      summary: Delete a user (admin only)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+    patch:
+      operationId: adminToggleAdmin
+      tags: [admin]
+      summary: Toggle admin status for a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /admin/posts:
+    get:
+      operationId: listAdminPosts
+      tags: [admin]
+      summary: List all posts (admin only)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Posts list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPostsResponse"
+
+  /admin/posts/{postId}:
+    delete:
+      operationId: adminDeletePost
+      tags: [admin]
+      summary: Delete a post (admin only)
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -460,6 +622,8 @@ components:
         avatarUrl:
           type: string
           nullable: true
+        isAdmin:
+          type: boolean
         createdAt:
           type: string
       required: [id, username, displayName, email, createdAt]
@@ -479,6 +643,8 @@ components:
         avatarUrl:
           type: string
           nullable: true
+        isAdmin:
+          type: boolean
         postCount:
           type: integer
         createdAt:
@@ -548,8 +714,15 @@ components:
         mediaType:
           type: string
           nullable: true
+        isEdited:
+          type: boolean
+        isDeleted:
+          type: boolean
         createdAt:
           type: string
+        editedAt:
+          type: string
+          nullable: true
         sender:
           $ref: "#/components/schemas/User"
       required: [id, conversationId, senderId, content, createdAt, sender]
@@ -562,6 +735,12 @@ components:
         mediaUrl:
           type: string
         mediaType:
+          type: string
+
+    EditMessageBody:
+      type: object
+      properties:
+        content:
           type: string
       required: [content]
 
@@ -646,3 +825,50 @@ components:
         activeUsers:
           type: integer
       required: [totalPosts, totalMessages, activeUsers]
+
+    AdminStats:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+        totalPosts:
+          type: integer
+        totalMessages:
+          type: integer
+        totalConversations:
+          type: integer
+        newUsersToday:
+          type: integer
+        newPostsToday:
+          type: integer
+      required: [totalUsers, totalPosts, totalMessages, totalConversations, newUsersToday, newPostsToday]
+
+    AdminUsersResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+      required: [users, total, page, pageSize]
+
+    AdminPostsResponse:
+      type: object
+      properties:
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Post"
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+      required: [posts, total, page, pageSize]

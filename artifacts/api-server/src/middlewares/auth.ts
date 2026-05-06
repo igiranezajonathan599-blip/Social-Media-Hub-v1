@@ -1,5 +1,7 @@
 import { type Request, type Response, type NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { db, usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 const JWT_SECRET = process.env.SESSION_SECRET || "hub-secret-key";
 
@@ -19,7 +21,7 @@ export function verifyToken(token: string): AuthPayload | null {
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Unauthorized" });
@@ -31,7 +33,16 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     res.status(401).json({ error: "Invalid token" });
     return;
   }
-  (req as Request & { userId: number }).userId = payload.userId;
+  (req as any).userId = payload.userId;
+
+  // Load isAdmin from DB
+  try {
+    const [user] = await db.select({ isAdmin: usersTable.isAdmin }).from(usersTable).where(eq(usersTable.id, payload.userId));
+    (req as any).isAdmin = user?.isAdmin ?? false;
+  } catch {
+    (req as any).isAdmin = false;
+  }
+
   next();
 }
 
@@ -39,6 +50,7 @@ declare global {
   namespace Express {
     interface Request {
       userId?: number;
+      isAdmin?: boolean;
     }
   }
 }

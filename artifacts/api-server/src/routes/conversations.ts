@@ -5,7 +5,7 @@ import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
-function formatUser(u: { id: number; username: string; displayName: string; email: string; bio: string | null; avatarUrl: string | null; createdAt: Date }) {
+function formatUser(u: { id: number; username: string; displayName: string; email: string; bio: string | null; avatarUrl: string | null; isAdmin: boolean; createdAt: Date }) {
   return {
     id: u.id,
     username: u.username,
@@ -13,7 +13,24 @@ function formatUser(u: { id: number; username: string; displayName: string; emai
     email: u.email,
     bio: u.bio,
     avatarUrl: u.avatarUrl,
+    isAdmin: u.isAdmin,
     createdAt: u.createdAt.toISOString(),
+  };
+}
+
+function formatMessage(msg: any, sender: any) {
+  return {
+    id: msg.id,
+    conversationId: msg.conversationId,
+    senderId: msg.senderId,
+    content: msg.isDeleted ? "" : msg.content,
+    mediaUrl: msg.isDeleted ? null : msg.mediaUrl,
+    mediaType: msg.isDeleted ? null : msg.mediaType,
+    isEdited: msg.isEdited ?? false,
+    isDeleted: msg.isDeleted ?? false,
+    createdAt: msg.createdAt instanceof Date ? msg.createdAt.toISOString() : msg.createdAt,
+    editedAt: msg.editedAt instanceof Date ? msg.editedAt.toISOString() : (msg.editedAt ?? null),
+    sender: formatUser(sender),
   };
 }
 
@@ -36,11 +53,7 @@ router.get("/conversations", requireAuth, async (req, res): Promise<void> => {
       const otherUserId =
         conv.participantAId === userId ? conv.participantBId : conv.participantAId;
 
-      const [otherUser] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, otherUserId));
-
+      const [otherUser] = await db.select().from(usersTable).where(eq(usersTable.id, otherUserId));
       const [lastMessage] = await db
         .select()
         .from(messagesTable)
@@ -61,20 +74,8 @@ router.get("/conversations", requireAuth, async (req, res): Promise<void> => {
 
       let lastMessageFormatted = null;
       if (lastMessage) {
-        const [sender] = await db
-          .select()
-          .from(usersTable)
-          .where(eq(usersTable.id, lastMessage.senderId));
-        lastMessageFormatted = {
-          id: lastMessage.id,
-          conversationId: lastMessage.conversationId,
-          senderId: lastMessage.senderId,
-          content: lastMessage.content,
-          mediaUrl: lastMessage.mediaUrl,
-          mediaType: lastMessage.mediaType,
-          createdAt: lastMessage.createdAt.toISOString(),
-          sender: formatUser(sender),
-        };
+        const [sender] = await db.select().from(usersTable).where(eq(usersTable.id, lastMessage.senderId));
+        lastMessageFormatted = formatMessage(lastMessage, sender);
       }
 
       return {
@@ -104,14 +105,8 @@ router.post("/conversations", requireAuth, async (req, res): Promise<void> => {
     .from(conversationsTable)
     .where(
       or(
-        and(
-          eq(conversationsTable.participantAId, userId),
-          eq(conversationsTable.participantBId, targetUserId)
-        ),
-        and(
-          eq(conversationsTable.participantAId, targetUserId),
-          eq(conversationsTable.participantBId, userId)
-        )
+        and(eq(conversationsTable.participantAId, userId), eq(conversationsTable.participantBId, targetUserId)),
+        and(eq(conversationsTable.participantAId, targetUserId), eq(conversationsTable.participantBId, userId))
       )
     )
     .limit(1);
@@ -120,12 +115,7 @@ router.post("/conversations", requireAuth, async (req, res): Promise<void> => {
     const conv = existing[0];
     const [a] = await db.select().from(usersTable).where(eq(usersTable.id, conv.participantAId));
     const [b] = await db.select().from(usersTable).where(eq(usersTable.id, conv.participantBId));
-    res.status(201).json({
-      id: conv.id,
-      participantA: formatUser(a),
-      participantB: formatUser(b),
-      createdAt: conv.createdAt.toISOString(),
-    });
+    res.status(201).json({ id: conv.id, participantA: formatUser(a), participantB: formatUser(b), createdAt: conv.createdAt.toISOString() });
     return;
   }
 
@@ -137,112 +127,60 @@ router.post("/conversations", requireAuth, async (req, res): Promise<void> => {
   const [a] = await db.select().from(usersTable).where(eq(usersTable.id, conv.participantAId));
   const [b] = await db.select().from(usersTable).where(eq(usersTable.id, conv.participantBId));
 
-  res.status(201).json({
-    id: conv.id,
-    participantA: formatUser(a),
-    participantB: formatUser(b),
-    createdAt: conv.createdAt.toISOString(),
-  });
+  res.status(201).json({ id: conv.id, participantA: formatUser(a), participantB: formatUser(b), createdAt: conv.createdAt.toISOString() });
 });
 
 router.get("/conversations/:conversationId/messages", requireAuth, async (req, res): Promise<void> => {
   const userId = req.userId!;
-  const rawId = Array.isArray(req.params.conversationId) ? req.params.conversationId[0] : req.params.conversationId;
-  const conversationId = parseInt(rawId, 10);
+  const conversationId = parseInt(req.params["conversationId"] as string, 10);
+  if (isNaN(conversationId)) { res.status(400).json({ error: "Invalid conversation ID" }); return; }
 
-  if (isNaN(conversationId)) {
-    res.status(400).json({ error: "Invalid conversation ID" });
-    return;
-  }
-
-  const [conv] = await db
-    .select()
-    .from(conversationsTable)
-    .where(
-      and(
-        eq(conversationsTable.id, conversationId),
-        or(
-          eq(conversationsTable.participantAId, userId),
-          eq(conversationsTable.participantBId, userId)
-        )
-      )
-    );
-
-  if (!conv) {
-    res.status(404).json({ error: "Conversation not found" });
-    return;
-  }
+  const [conv] = await db.select().from(conversationsTable).where(
+    and(eq(conversationsTable.id, conversationId), or(eq(conversationsTable.participantAId, userId), eq(conversationsTable.participantBId, userId)))
+  );
+  if (!conv) { res.status(404).json({ error: "Conversation not found" }); return; }
 
   const beforeParam = req.query.before ? parseInt(req.query.before as string, 10) : undefined;
 
-  let query = db
+  const messages = await db
     .select()
     .from(messagesTable)
-    .where(
-      beforeParam
-        ? and(eq(messagesTable.conversationId, conversationId), lt(messagesTable.id, beforeParam))
-        : eq(messagesTable.conversationId, conversationId)
+    .where(beforeParam
+      ? and(eq(messagesTable.conversationId, conversationId), lt(messagesTable.id, beforeParam))
+      : eq(messagesTable.conversationId, conversationId)
     )
     .orderBy(desc(messagesTable.createdAt))
     .limit(50);
 
-  const messages = await query;
-
   const messagesWithSenders = await Promise.all(
     messages.map(async (msg) => {
       const [sender] = await db.select().from(usersTable).where(eq(usersTable.id, msg.senderId));
-      return {
-        id: msg.id,
-        conversationId: msg.conversationId,
-        senderId: msg.senderId,
-        content: msg.content,
-        mediaUrl: msg.mediaUrl,
-        mediaType: msg.mediaType,
-        createdAt: msg.createdAt.toISOString(),
-        sender: formatUser(sender),
-      };
+      return formatMessage(msg, sender);
     })
   );
+
+  // Mark messages as read
+  await db.update(messagesTable)
+    .set({ isRead: true })
+    .where(and(eq(messagesTable.conversationId, conversationId), eq(messagesTable.isRead, false)));
 
   res.json(messagesWithSenders.reverse());
 });
 
 router.post("/conversations/:conversationId/messages", requireAuth, async (req, res): Promise<void> => {
   const userId = req.userId!;
-  const rawId = Array.isArray(req.params.conversationId) ? req.params.conversationId[0] : req.params.conversationId;
-  const conversationId = parseInt(rawId, 10);
+  const conversationId = parseInt(req.params["conversationId"] as string, 10);
+  if (isNaN(conversationId)) { res.status(400).json({ error: "Invalid conversation ID" }); return; }
 
-  if (isNaN(conversationId)) {
-    res.status(400).json({ error: "Invalid conversation ID" });
-    return;
-  }
+  const [conv] = await db.select().from(conversationsTable).where(
+    and(eq(conversationsTable.id, conversationId), or(eq(conversationsTable.participantAId, userId), eq(conversationsTable.participantBId, userId)))
+  );
+  if (!conv) { res.status(404).json({ error: "Conversation not found" }); return; }
 
-  const [conv] = await db
-    .select()
-    .from(conversationsTable)
-    .where(
-      and(
-        eq(conversationsTable.id, conversationId),
-        or(
-          eq(conversationsTable.participantAId, userId),
-          eq(conversationsTable.participantBId, userId)
-        )
-      )
-    );
+  const { content = "", mediaUrl, mediaType } = req.body as { content?: string; mediaUrl?: string; mediaType?: string };
 
-  if (!conv) {
-    res.status(404).json({ error: "Conversation not found" });
-    return;
-  }
-
-  const { content, mediaUrl, mediaType } = req.body as {
-    content: string;
-    mediaUrl?: string;
-    mediaType?: string;
-  };
-
-  if (content == null || typeof content !== "string") {
-    res.status(400).json({ error: "Content is required" });
+  if (!content && !mediaUrl) {
+    res.status(400).json({ error: "Content or media is required" });
     return;
   }
 
@@ -251,23 +189,48 @@ router.post("/conversations/:conversationId/messages", requireAuth, async (req, 
     .values({ conversationId, senderId: userId, content, mediaUrl, mediaType })
     .returning();
 
-  await db
-    .update(conversationsTable)
-    .set({ updatedAt: new Date() })
-    .where(eq(conversationsTable.id, conversationId));
+  await db.update(conversationsTable).set({ updatedAt: new Date() }).where(eq(conversationsTable.id, conversationId));
 
   const [sender] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  res.status(201).json(formatMessage(message, sender));
+});
 
-  res.status(201).json({
-    id: message.id,
-    conversationId: message.conversationId,
-    senderId: message.senderId,
-    content: message.content,
-    mediaUrl: message.mediaUrl,
-    mediaType: message.mediaType,
-    createdAt: message.createdAt.toISOString(),
-    sender: formatUser(sender),
-  });
+router.patch("/conversations/:conversationId/messages/:messageId", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const conversationId = parseInt(req.params["conversationId"] as string, 10);
+  const messageId = parseInt(req.params["messageId"] as string, 10);
+  if (isNaN(conversationId) || isNaN(messageId)) { res.status(400).json({ error: "Invalid IDs" }); return; }
+
+  const [message] = await db.select().from(messagesTable).where(and(eq(messagesTable.id, messageId), eq(messagesTable.conversationId, conversationId)));
+  if (!message) { res.status(404).json({ error: "Message not found" }); return; }
+  if (message.senderId !== userId) { res.status(403).json({ error: "Not your message" }); return; }
+  if (message.isDeleted) { res.status(400).json({ error: "Cannot edit deleted message" }); return; }
+
+  const { content } = req.body as { content: string };
+  if (!content?.trim()) { res.status(400).json({ error: "Content is required" }); return; }
+
+  const [updated] = await db
+    .update(messagesTable)
+    .set({ content: content.trim(), isEdited: true, editedAt: new Date() })
+    .where(eq(messagesTable.id, messageId))
+    .returning();
+
+  const [sender] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  res.json(formatMessage(updated, sender));
+});
+
+router.delete("/conversations/:conversationId/messages/:messageId", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const conversationId = parseInt(req.params["conversationId"] as string, 10);
+  const messageId = parseInt(req.params["messageId"] as string, 10);
+  if (isNaN(conversationId) || isNaN(messageId)) { res.status(400).json({ error: "Invalid IDs" }); return; }
+
+  const [message] = await db.select().from(messagesTable).where(and(eq(messagesTable.id, messageId), eq(messagesTable.conversationId, conversationId)));
+  if (!message) { res.status(404).json({ error: "Message not found" }); return; }
+  if (message.senderId !== userId) { res.status(403).json({ error: "Not your message" }); return; }
+
+  await db.update(messagesTable).set({ isDeleted: true, content: "" }).where(eq(messagesTable.id, messageId));
+  res.json({ message: "Message deleted" });
 });
 
 export default router;
