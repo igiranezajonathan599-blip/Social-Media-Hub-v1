@@ -1,45 +1,66 @@
-# [Project name]
+# Message & Media Hub
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A full-stack social communication platform where users can post, like, comment, send direct messages, and manage their profiles.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
+- `pnpm --filter @workspace/hub run dev` — run the frontend (port 22117)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `DATABASE_URL`, `SESSION_SECRET`
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
+- Frontend: React 19 + Vite + Tailwind CSS v4 + shadcn/ui
+- API: Express 5 + JWT auth (jsonwebtoken + bcrypt)
 - DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
+- API codegen: Orval (contract-first from OpenAPI spec in `lib/api-spec/openapi.yaml`)
 - Build: esbuild (CJS bundle)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/api-spec/openapi.yaml` — source of truth for all API contracts
+- `lib/db/src/schema/` — Drizzle schema (users, posts, comments, likes, conversations, messages)
+- `lib/api-zod/src/generated/` — generated Zod schemas (do not edit)
+- `lib/api-client-react/src/generated/api.ts` — generated React Query hooks (do not edit)
+- `artifacts/api-server/src/routes/` — Express route handlers
+- `artifacts/api-server/src/middlewares/auth.ts` — JWT sign/verify/requireAuth
+- `artifacts/hub/src/pages/` — feed, login, register, messages, profile, profile-edit
+- `artifacts/hub/src/components/` — layout, post-card, UI primitives
+- `artifacts/hub/src/index.css` — jewel-toned dark theme (sapphire/magenta)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Contract-first API: OpenAPI spec → Orval codegen → typed React Query hooks + Zod validators used in both server and client
+- JWT stored in `localStorage` as `hub_token`; `custom-fetch.ts` auto-attaches Bearer header on every request and redirects to `/login` on 401
+- All DB mutations flow through Drizzle ORM; raw SQL is avoided
+- `lib/api-zod` barrel exports only `./generated/api` — do NOT add `./generated/types` or `./generated/api.schemas`
+- Demo seed users: alex@example.com / maya@example.com / jordan@example.com — all use password `password123`
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- **Feed** — create posts (text + image URL), like/unlike, comment in-thread
+- **Messages** — direct message conversations with real-time-style polling (3s), search users to start new conversations
+- **Profiles** — view any user's posts, bio, avatar; edit your own display name, bio, and avatar URL
+- **Auth** — JWT-based register/login/logout; protected routes redirect unauthenticated users to `/login`
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Deep jewel-toned dark theme: sapphire background `240 70% 8%`, magenta primary `320 80% 55%`
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Always run `pnpm --filter @workspace/api-spec run codegen` after changing `openapi.yaml`
+- API server runs on port 8080, not 5000 (replit.md had a typo)
+- Do not use anonymous arrow functions with hooks in JSX render props — extract into named components
+- Demo conversation IDs start at 3 (1 and 2 were test rows that were deleted)
 
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- See `lib/api-client-react/src/custom-fetch.ts` for auth token injection logic

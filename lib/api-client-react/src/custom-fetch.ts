@@ -358,9 +358,22 @@ export async function customFetch<T = unknown>(
     }
   }
 
+  // Fallback to hub_token in localStorage if we're in a browser
+  if (typeof window !== "undefined" && !headers.has("authorization")) {
+    const hubToken = localStorage.getItem("hub_token");
+    if (hubToken) {
+      headers.set("authorization", `Bearer ${hubToken}`);
+    }
+  }
+
   const requestInfo = { method, url: resolveUrl(input) };
 
   const response = await fetch(input, { ...init, method, headers });
+
+  if (response.status === 401 && typeof window !== "undefined") {
+    localStorage.removeItem("hub_token");
+    window.location.href = "/login";
+  }
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
