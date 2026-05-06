@@ -1,9 +1,8 @@
 import { Router, type IRouter } from "express";
-import bcrypt from "bcrypt";
+import { getAuth, clerkClient } from "@clerk/express";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { RegisterBody, LoginBody } from "@workspace/api-zod";
-import { signToken, requireAuth } from "../middlewares/auth";
+import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
@@ -20,50 +19,74 @@ function formatUser(user: typeof usersTable.$inferSelect) {
   };
 }
 
-router.post("/auth/register", async (req, res): Promise<void> => {
-  const parsed = RegisterBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+// Auto-sync Clerk user to DB and return profile
+router.get("/auth/me", async (req, res): Promise<void> => {
+  const auth = getAuth(req);
+  if (!auth?.userId) {
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
 
-  const { username, displayName, email, password, bio, avatarUrl } = parsed.data;
+  let [user] = await db.select().from(usersTable).where(eq(usersTable.clerkId, auth.userId));
 
-  const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email));
-  if (existing.length > 0) { res.status(409).json({ error: "Email already in use" }); return; }
+  if (!user) {
+    // First time — fetch Clerk user data and create DB record
+    try {
+      const clerkUser = await clerkClient().users.getUser(auth.userId);
+      const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
+      const displayName =
+        clerkUser.fullName ||
+        `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() ||
+        email.split("@")[0];
+      const avatarUrl = clerkUser.imageUrl || null;
 
-  const usernameExists = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.username, username));
-  if (usernameExists.length > 0) { res.status(409).json({ error: "Username already taken" }); return; }
+      // Try to link by email first (migrates existing demo users)
+      const [existingByEmail] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.email, email));
 
-  const passwordHash = await bcrypt.hash(password, 10);
-  const [user] = await db.insert(usersTable).values({ username, displayName, email, passwordHash, bio, avatarUrl }).returning();
-  const token = signToken({ userId: user.id });
-  res.status(201).json({ token, user: formatUser(user) });
-});
+      if (existingByEmail) {
+        [user] = await db
+          .update(usersTable)
+          .set({ clerkId: auth.userId, avatarUrl: avatarUrl ?? existingByEmail.avatarUrl })
+          .where(eq(usersTable.id, existingByEmail.id))
+          .returning();
+      } else {
+        // Create new user
+        let username =
+          clerkUser.username ||
+          email.split("@")[0].replace(/[^a-z0-9_]/gi, "").toLowerCase() ||
+          `user${Date.now().toString().slice(-6)}`;
 
-router.post("/auth/login", async (req, res): Promise<void> => {
-  const parsed = LoginBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+        const [usernameExists] = await db
+          .select({ id: usersTable.id })
+          .from(usersTable)
+          .where(eq(usersTable.username, username));
+        if (usernameExists) {
+          username = `${username}${Date.now().toString().slice(-4)}`;
+        }
 
-  const { email, password } = parsed.data;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
-  if (!user) { res.status(401).json({ error: "Invalid credentials" }); return; }
+        [user] = await db
+          .insert(usersTable)
+          .values({ clerkId: auth.userId, username, displayName, email, avatarUrl })
+          .returning();
+      }
+    } catch (err) {
+      res.status(500).json({ error: "Failed to sync user account" });
+      return;
+    }
+  }
 
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) { res.status(401).json({ error: "Invalid credentials" }); return; }
-
-  const token = signToken({ userId: user.id });
-  res.json({ token, user: formatUser(user) });
+  res.json(formatUser(user));
 });
 
 router.post("/auth/logout", (_req, res): void => {
   res.json({ message: "Logged out" });
 });
 
-router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!));
-  if (!user) { res.status(404).json({ error: "User not found" }); return; }
-  res.json(formatUser(user));
+router.get("/auth/me/admin-check", requireAuth, async (req, res): Promise<void> => {
+  res.json({ isAdmin: req.isAdmin ?? false });
 });
 
 export default router;

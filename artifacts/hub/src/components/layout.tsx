@@ -1,7 +1,8 @@
 import { Link, useLocation } from "wouter";
-import { useLogout, useGetMe } from "@workspace/api-client-react";
+import { useGetMe } from "@workspace/api-client-react";
+import { useClerk } from "@clerk/react";
 import {
-  MessageCircle, Home, User, LogOut, Loader2, Sparkles, Shield
+  MessageCircle, Home, User, LogOut, Sparkles, Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -9,21 +10,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 export default function Layout({ children, user }: { children: React.ReactNode; user?: any }) {
   const [location, setLocation] = useLocation();
-  const logout = useLogout();
-
+  const { signOut } = useClerk();
   const { data: me } = useGetMe();
   const currentUser = user || me;
   const isAdmin = (currentUser as any)?.isAdmin;
 
   const handleLogout = () => {
-    logout.mutate(undefined, {
-      onSuccess: () => {
-        localStorage.removeItem("hub_token");
-        setLocation("/login");
-      }
-    });
+    signOut(() => setLocation("/sign-in"));
   };
 
   const navItems = [
@@ -93,11 +90,8 @@ export default function Layout({ children, user }: { children: React.ReactNode; 
             variant="ghost"
             className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             onClick={handleLogout}
-            disabled={logout.isPending}
           >
-            {logout.isPending
-              ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              : <LogOut className="w-4 h-4 mr-2" />}
+            <LogOut className="w-4 h-4 mr-2" />
             Log out
           </Button>
         </div>

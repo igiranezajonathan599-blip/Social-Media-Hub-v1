@@ -1,5 +1,7 @@
+@layer theme, base, clerk, components, utilities;
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "@clerk/themes/shadcn.css";
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
@@ -69,82 +71,12 @@
 :root {
   --button-outline: rgba(255,255,255, .10);
   --badge-outline: rgba(255,255,255, .05);
-  --opaque-button-border-intensity: 9; 
+  --opaque-button-border-intensity: 9;
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
   /* Jewel Tones: Deep sapphire blue/purple background */
-  --background: 240 70% 8%; 
-  --foreground: 210 40% 98%;
-
-  --card: 240 60% 12%;
-  --card-foreground: 210 40% 98%;
-  --card-border: 240 50% 20%;
-
-  --popover: 240 60% 12%;
-  --popover-foreground: 210 40% 98%;
-  --popover-border: 240 50% 20%;
-
-  --primary: 320 80% 55%; /* Vibrant magenta/purple */
-  --primary-foreground: 210 40% 98%;
-
-  --secondary: 240 50% 20%;
-  --secondary-foreground: 210 40% 98%;
-
-  --muted: 240 40% 18%;
-  --muted-foreground: 240 20% 75%;
-
-  --accent: 280 60% 30%;
-  --accent-foreground: 210 40% 98%;
-
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-
-  --border: 240 50% 20%;
-  --input: 240 50% 20%;
-  --ring: 320 80% 55%;
-
-  --sidebar: 240 70% 6%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-border: 240 50% 16%;
-  --sidebar-primary: 320 80% 55%;
-  --sidebar-primary-foreground: 210 40% 98%;
-  --sidebar-accent: 240 50% 16%;
-  --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-ring: 320 80% 55%;
-
-  --chart-1: 320 80% 55%;
-  --chart-2: 280 60% 50%;
-  --chart-3: 240 60% 50%;
-  --chart-4: 200 60% 50%;
-  --chart-5: 160 60% 50%;
-
-  --app-font-sans: 'Inter', sans-serif;
-  --app-font-serif: Georgia, serif;
-  --app-font-mono: Menlo, monospace;
-  --radius: 0.75rem; 
-
-  --shadow-2xs: 0px 2px 0px 0px hsl(var(--primary) / 0.05);
-  --shadow-xs: 0px 2px 0px 0px hsl(var(--primary) / 0.05);
-  --shadow-sm: 0px 2px 0px 0px hsl(var(--primary) / 0.05), 0px 1px 2px -1px hsl(var(--primary) / 0.1);
-  --shadow: 0px 2px 0px 0px hsl(var(--primary) / 0.05), 0px 1px 2px -1px hsl(var(--primary) / 0.1);
-  --shadow-md: 0px 2px 0px 0px hsl(var(--primary) / 0.05), 0px 2px 4px -1px hsl(var(--primary) / 0.1);
-  --shadow-lg: 0px 2px 0px 0px hsl(var(--primary) / 0.05), 0px 4px 6px -1px hsl(var(--primary) / 0.1);
-  --shadow-xl: 0px 2px 0px 0px hsl(var(--primary) / 0.05), 0px 8px 10px -1px hsl(var(--primary) / 0.1);
-  --shadow-2xl: 0px 2px 0px 0px hsl(var(--primary) / 0.05);
-
-  --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-  --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-}
-
-.dark {
-  /* We use the same jewel tones for both modes to keep it rich */
-  --background: 240 70% 8%; 
+  --background: 240 70% 8%;
   --foreground: 210 40% 98%;
 
   --card: 240 60% 12%;
@@ -157,45 +89,63 @@
 
   --primary: 320 80% 55%;
   --primary-foreground: 210 40% 98%;
+  --primary-border: rgba(180, 50, 130, 0.4);
 
   --secondary: 240 50% 20%;
   --secondary-foreground: 210 40% 98%;
+  --secondary-border: rgba(255,255,255,0.08);
 
   --muted: 240 40% 18%;
   --muted-foreground: 240 20% 75%;
+  --muted-border: rgba(255,255,255,0.06);
 
   --accent: 280 60% 30%;
   --accent-foreground: 210 40% 98%;
+  --accent-border: rgba(255,255,255,0.08);
 
-  --destructive: 0 62.8% 30.6%;
+  --destructive: 0 72% 51%;
   --destructive-foreground: 210 40% 98%;
+  --destructive-border: rgba(255,80,80,0.3);
 
   --border: 240 50% 20%;
   --input: 240 50% 20%;
   --ring: 320 80% 55%;
 
-  --sidebar: 240 70% 6%;
+  --chart-1: 320 80% 55%;
+  --chart-2: 260 70% 60%;
+  --chart-3: 200 80% 55%;
+  --chart-4: 160 70% 50%;
+  --chart-5: 40 80% 60%;
+
+  --sidebar: 240 65% 10%;
   --sidebar-foreground: 210 40% 98%;
-  --sidebar-border: 240 50% 16%;
+  --sidebar-border: 240 50% 18%;
   --sidebar-primary: 320 80% 55%;
   --sidebar-primary-foreground: 210 40% 98%;
-  --sidebar-accent: 240 50% 16%;
+  --sidebar-primary-border: rgba(180, 50, 130, 0.4);
+  --sidebar-accent: 240 50% 20%;
   --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-accent-border: rgba(255,255,255,0.08);
   --sidebar-ring: 320 80% 55%;
 
-  --chart-1: 320 80% 55%;
-  --chart-2: 280 60% 50%;
-  --chart-3: 240 60% 50%;
-  --chart-4: 200 60% 50%;
-  --chart-5: 160 60% 50%;
+  --radius: 0.75rem;
+
+  --app-font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --app-font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  --app-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
+/* Clerk input placeholder on dark background */
+.cl-formFieldInput::placeholder {
+  color: hsl(240, 20%, 55%);
+  opacity: 1;
+}
 
-  body {
-    @apply font-sans antialiased bg-background text-foreground;
-  }
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
