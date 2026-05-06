@@ -33,8 +33,8 @@ export default function Profile({ params, user }: { params: { userId: string }; 
     createConversation.mutate(
       { data: { userId } },
       {
-        onSuccess: () => {
-          setLocation("/messages");
+        onSuccess: (conv) => {
+          setLocation(`/messages?conv=${(conv as any).id}`);
         }
       }
     );

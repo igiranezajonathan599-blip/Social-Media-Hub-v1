@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useSearch } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 import {
   useListConversations, getListConversationsQueryKey,
@@ -87,7 +88,11 @@ function StickerPicker({ onSelect, onClose }: { onSelect: (emoji: string) => voi
 
 export default function Messages({ user }: { user: any }) {
   const queryClient = useQueryClient();
-  const [activeConvId, setActiveConvId] = useState<number | null>(null);
+  const search = useSearch();
+  const convParam = new URLSearchParams(search).get("conv");
+  const [activeConvId, setActiveConvId] = useState<number | null>(
+    convParam ? parseInt(convParam, 10) : null
+  );
   const [messageText, setMessageText] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
   const [showMediaInput, setShowMediaInput] = useState(false);
