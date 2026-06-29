@@ -225,6 +225,7 @@ function ClerkProviderWithRoutes() {
       signUpUrl={`${basePath}/sign-up`}
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+      captchaWidgetType="invisible"
     >
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />

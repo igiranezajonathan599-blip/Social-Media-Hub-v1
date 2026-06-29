@@ -1,10 +1,12 @@
 import { Router, type IRouter } from "express";
-import { getAuth, clerkClient } from "@clerk/express";
+import { getAuth, createClerkClient } from "@clerk/express";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
+
+const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
 function formatUser(user: typeof usersTable.$inferSelect) {
   return {
@@ -32,7 +34,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   if (!user) {
     // First time — fetch Clerk user data and create DB record
     try {
-      const clerkUser = await clerkClient().users.getUser(auth.userId);
+      const clerkUser = await clerk.users.getUser(auth.userId);
       const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
       const displayName =
         clerkUser.fullName ||
