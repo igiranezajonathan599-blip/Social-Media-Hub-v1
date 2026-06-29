@@ -105,7 +105,7 @@ export default function Profile({ params, user }: { params: { userId: string }; 
             {isOwnProfile && (
               <Button
                 variant="outline"
-                onClick={() => setLocation("/profile/me")}
+                onClick={() => setLocation("/profile/me/edit")}
                 className="rounded-full px-6"
                 data-testid="button-edit-profile"
               >

@@ -130,9 +130,9 @@ export default function Admin({ user }: { user: any }) {
                 <StatCard icon={Users} label="Total Users" value={(stats as any).totalUsers ?? 0} color="bg-blue-500/20 text-blue-400" />
                 <StatCard icon={FileText} label="Total Posts" value={(stats as any).totalPosts ?? 0} color="bg-violet-500/20 text-violet-400" />
                 <StatCard icon={MessageSquare} label="Total Messages" value={(stats as any).totalMessages ?? 0} color="bg-primary/20 text-primary" />
-                <StatCard icon={Heart} label="Total Likes" value={(stats as any).totalLikes ?? 0} color="bg-red-500/20 text-red-400" />
-                <StatCard icon={TrendingUp} label="Posts This Week" value={(stats as any).postsThisWeek ?? 0} color="bg-green-500/20 text-green-400" />
-                <StatCard icon={UserCheck} label="New Users This Week" value={(stats as any).newUsersThisWeek ?? 0} color="bg-yellow-500/20 text-yellow-400" />
+                <StatCard icon={Heart} label="Total Conversations" value={(stats as any).totalConversations ?? 0} color="bg-red-500/20 text-red-400" />
+                <StatCard icon={TrendingUp} label="New Posts Today" value={(stats as any).newPostsToday ?? 0} color="bg-green-500/20 text-green-400" />
+                <StatCard icon={UserCheck} label="New Users Today" value={(stats as any).newUsersToday ?? 0} color="bg-yellow-500/20 text-yellow-400" />
               </div>
             )}
           </div>

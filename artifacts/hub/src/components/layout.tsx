@@ -56,10 +56,12 @@ export default function Layout({ children, user }: { children: React.ReactNode; 
     signOut(() => setLocation("/sign-in"));
   };
 
+  const profilePath = currentUser?.id ? `/profile/${currentUser.id}` : "/profile/me";
+
   const navItems = [
     { icon: Home, label: "Feed", path: "/feed" },
     { icon: MessageCircle, label: "Messages", path: "/messages" },
-    { icon: User, label: "Profile", path: "/profile/me" },
+    { icon: User, label: "Profile", path: profilePath },
     ...(isAdmin ? [{ icon: Shield, label: "Admin", path: "/admin" }] : []),
   ];
 

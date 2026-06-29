@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useGetMe, getGetMeQueryKey, useUpdateProfile } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,6 +24,7 @@ const formSchema = z.object({
 export default function ProfileEdit({ user }: { user: any }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const { data: me, isLoading } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
   const updateProfile = useUpdateProfile();
@@ -88,9 +90,21 @@ export default function ProfileEdit({ user }: { user: any }) {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight">Edit Profile</h1>
-          <p className="text-muted-foreground text-sm mt-1">Manage your public profile information</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Edit Profile</h1>
+            <p className="text-muted-foreground text-sm mt-1">Manage your public profile information</p>
+          </div>
+          {(me as any)?.id && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLocation(`/profile/${(me as any).id}`)}
+              className="shrink-0"
+            >
+              View Profile
+            </Button>
+          )}
         </div>
 
         {/* Avatar Preview */}

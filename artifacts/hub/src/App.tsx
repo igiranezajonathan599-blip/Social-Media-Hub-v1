@@ -100,6 +100,29 @@ function RegisterRedirect() {
   return <Redirect to="/sign-up" />;
 }
 
+function ProfileMeRedirect() {
+  const [, setLocation] = useLocation();
+  const { data: user, isLoading, error } = useGetMe();
+
+  useEffect(() => {
+    if (!isLoading && error) {
+      setLocation("/sign-in");
+    }
+  }, [isLoading, error, setLocation]);
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      setLocation(`/profile/${(user as any).id}`);
+    }
+  }, [isLoading, user, setLocation]);
+
+  return (
+    <div className="flex h-screen w-full items-center justify-center">
+      <Spinner size="lg" />
+    </div>
+  );
+}
+
 function ProtectedRoute({ component: Component, adminOnly = false, ...rest }: any) {
   const [, setLocation] = useLocation();
   const { data: user, isLoading, error } = useGetMe();
@@ -199,8 +222,11 @@ function Router() {
       <Route path="/messages">
         {(params) => <ProtectedRoute component={Messages} {...params} />}
       </Route>
-      <Route path="/profile/me">
+      <Route path="/profile/me/edit">
         {(params) => <ProtectedRoute component={ProfileEdit} {...params} />}
+      </Route>
+      <Route path="/profile/me">
+        {() => <ProfileMeRedirect />}
       </Route>
       <Route path="/profile/:userId">
         {(params) => <ProtectedRoute component={Profile} {...params} />}
@@ -225,7 +251,6 @@ function ClerkProviderWithRoutes() {
       signUpUrl={`${basePath}/sign-up`}
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
-      captchaWidgetType="invisible"
     >
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />

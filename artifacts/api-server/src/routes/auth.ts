@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { getAuth, createClerkClient } from "@clerk/express";
 import { db, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, count } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -69,9 +69,16 @@ router.get("/auth/me", async (req, res): Promise<void> => {
           username = `${username}${Date.now().toString().slice(-4)}`;
         }
 
+        // Auto-grant admin to the very first user registered (no admins exist yet)
+        const [{ adminCount }] = await db
+          .select({ adminCount: count() })
+          .from(usersTable)
+          .where(eq(usersTable.isAdmin, true));
+        const isFirstAdmin = Number(adminCount) === 0;
+
         [user] = await db
           .insert(usersTable)
-          .values({ clerkId: auth.userId, username, displayName, email, avatarUrl })
+          .values({ clerkId: auth.userId, username, displayName, email, avatarUrl, isAdmin: isFirstAdmin })
           .returning();
       }
     } catch (err) {
