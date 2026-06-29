@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useGetMe, getGetMeQueryKey, useUpdateProfile } from "@workspace/api-client-react";
+import { useGetMe, getGetMeQueryKey, getGetUserByIdQueryKey, useUpdateProfile } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -59,11 +59,18 @@ export default function ProfileEdit({ user }: { user: any }) {
       },
       {
         onSuccess: () => {
+          const meId = (me as any)?.id;
           queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+          if (meId) {
+            queryClient.invalidateQueries({ queryKey: getGetUserByIdQueryKey(meId) });
+          }
           toast({
             title: "Profile updated",
             description: "Your profile has been saved successfully.",
           });
+          if (meId) {
+            setLocation(`/profile/${meId}`);
+          }
         },
         onError: (error: any) => {
           toast({
