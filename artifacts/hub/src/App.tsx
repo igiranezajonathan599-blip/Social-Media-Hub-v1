@@ -229,7 +229,7 @@ function Router() {
         {() => <ProfileMeRedirect />}
       </Route>
       <Route path="/profile/:userId">
-        {(params) => <ProtectedRoute component={Profile} {...params} />}
+        {(params) => <ProtectedRoute component={Profile} params={params} />}
       </Route>
       <Route path="/admin">
         {(params) => <ProtectedRoute component={Admin} adminOnly {...params} />}
