@@ -88,8 +88,35 @@ const clerkAppearance = {
 
 function RootRedirect() {
   const [, setLocation] = useLocation();
-  useEffect(() => { setLocation("/feed"); }, []);
+  useEffect(() => { setLocation("/dashboard"); }, []);
   return null;
+}
+
+function DashboardRedirect() {
+  const [, setLocation] = useLocation();
+  const { data: user, isLoading, error } = useGetMe();
+
+  useEffect(() => {
+    if (!isLoading && error) {
+      setLocation("/sign-in");
+    }
+  }, [isLoading, error, setLocation]);
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      if ((user as any).isAdmin) {
+        setLocation("/admin");
+      } else {
+        setLocation(`/profile/${(user as any).id}`);
+      }
+    }
+  }, [isLoading, user, setLocation]);
+
+  return (
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+      <Spinner size="lg" />
+    </div>
+  );
 }
 
 function LoginRedirect() {
@@ -166,7 +193,7 @@ function SignInPage() {
           routing="path"
           path={`${basePath}/sign-in`}
           signUpUrl={`${basePath}/sign-up`}
-          forceRedirectUrl={`${basePath}/feed`}
+          forceRedirectUrl={`${basePath}/dashboard`}
         />
       </div>
     </div>
@@ -182,7 +209,7 @@ function SignUpPage() {
           routing="path"
           path={`${basePath}/sign-up`}
           signInUrl={`${basePath}/sign-in`}
-          forceRedirectUrl={`${basePath}/feed`}
+          forceRedirectUrl={`${basePath}/dashboard`}
         />
       </div>
     </div>
@@ -221,6 +248,9 @@ function Router() {
       </Route>
       <Route path="/messages">
         {(params) => <ProtectedRoute component={Messages} {...params} />}
+      </Route>
+      <Route path="/dashboard">
+        {() => <DashboardRedirect />}
       </Route>
       <Route path="/profile/me/edit">
         {(params) => <ProtectedRoute component={ProfileEdit} {...params} />}
