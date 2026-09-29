@@ -1,5 +1,15 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable, postsTable, messagesTable, conversationsTable, commentsTable, likesTable } from "@workspace/db";
+import {
+  db,
+  usersTable,
+  postsTable,
+  messagesTable,
+  conversationsTable,
+  commentsTable,
+  likesTable,
+  dislikesTable,
+  sharesTable,
+} from "@workspace/db";
 import { eq, desc, count, gte, ilike, or, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
@@ -84,6 +94,8 @@ router.delete("/admin/users/:userId", requireAuth, requireAdmin, async (req, res
   }
 
   await db.delete(likesTable).where(eq(likesTable.userId, userId));
+  await db.delete(dislikesTable).where(eq(dislikesTable.userId, userId));
+  await db.delete(sharesTable).where(eq(sharesTable.userId, userId));
   await db.delete(commentsTable).where(eq(commentsTable.userId, userId));
   await db.delete(messagesTable).where(eq(messagesTable.senderId, userId));
   await db.delete(postsTable).where(eq(postsTable.userId, userId));
@@ -167,6 +179,8 @@ router.delete("/admin/posts/:postId", requireAuth, requireAdmin, async (req, res
   }
 
   await db.delete(likesTable).where(eq(likesTable.postId, postId));
+  await db.delete(dislikesTable).where(eq(dislikesTable.postId, postId));
+  await db.delete(sharesTable).where(eq(sharesTable.postId, postId));
   await db.delete(commentsTable).where(eq(commentsTable.postId, postId));
   await db.delete(postsTable).where(eq(postsTable.id, postId));
 

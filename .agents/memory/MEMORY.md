@@ -1,0 +1,1 @@
+- [Managed Clerk provisioning](managed-clerk-provisioning.md) — dashboard access can be limited while the app's server-side Clerk management path remains usable.

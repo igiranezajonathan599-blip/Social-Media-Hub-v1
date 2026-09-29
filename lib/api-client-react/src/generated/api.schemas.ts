@@ -112,8 +112,10 @@ export interface Post {
   likeCount: number;
   dislikeCount: number;
   commentCount: number;
+  shareCount: number;
   isLiked: boolean;
   isDisliked: boolean;
+  isShared: boolean;
   author: User;
   createdAt: string;
 }
@@ -140,11 +142,18 @@ export interface AddCommentBody {
 export interface LikeResponse {
   liked: boolean;
   likeCount: number;
+  dislikeCount: number;
 }
 
 export interface DislikeResponse {
   disliked: boolean;
   dislikeCount: number;
+  likeCount: number;
+}
+
+export interface ShareResponse {
+  shared: boolean;
+  shareCount: number;
 }
 
 export interface FeedStats {

@@ -43,6 +43,7 @@ import type {
   RegisterBody,
   SearchUsersParams,
   SendMessageBody,
+  ShareResponse,
   UpdateProfileBody,
   User,
   UserProfile,
@@ -1788,6 +1789,90 @@ export const useDislikePost = <
   TContext
 > => {
   return useMutation(getDislikePostMutationOptions(options));
+};
+
+/**
+ * @summary Record a post share
+ */
+export const getSharePostUrl = (postId: number) => {
+  return `/api/posts/${postId}/share`;
+};
+
+export const sharePost = async (
+  postId: number,
+  options?: RequestInit,
+): Promise<ShareResponse> => {
+  return customFetch<ShareResponse>(getSharePostUrl(postId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSharePostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sharePost>>,
+    TError,
+    { postId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sharePost>>,
+  TError,
+  { postId: number },
+  TContext
+> => {
+  const mutationKey = ["sharePost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sharePost>>,
+    { postId: number }
+  > = (props) => {
+    const { postId } = props ?? {};
+
+    return sharePost(postId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SharePostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sharePost>>
+>;
+
+export type SharePostMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Record a post share
+ */
+export const useSharePost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sharePost>>,
+    TError,
+    { postId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sharePost>>,
+  TError,
+  { postId: number },
+  TContext
+> => {
+  return useMutation(getSharePostMutationOptions(options));
 };
 
 /**

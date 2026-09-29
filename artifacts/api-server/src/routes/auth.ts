@@ -7,6 +7,7 @@ import { requireAuth } from "../middlewares/auth";
 const router: IRouter = Router();
 
 const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+const configuredAdminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
 
 function formatUser(user: typeof usersTable.$inferSelect) {
   return {
@@ -31,6 +32,14 @@ router.get("/auth/me", async (req, res): Promise<void> => {
 
   let [user] = await db.select().from(usersTable).where(eq(usersTable.clerkId, auth.userId));
 
+  if (user && configuredAdminEmail && user.email.toLowerCase() === configuredAdminEmail && !user.isAdmin) {
+    [user] = await db
+      .update(usersTable)
+      .set({ isAdmin: true })
+      .where(eq(usersTable.id, user.id))
+      .returning();
+  }
+
   if (!user) {
     // First time — fetch Clerk user data and create DB record
     try {
@@ -51,7 +60,11 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       if (existingByEmail) {
         [user] = await db
           .update(usersTable)
-          .set({ clerkId: auth.userId, avatarUrl: avatarUrl ?? existingByEmail.avatarUrl })
+          .set({
+            clerkId: auth.userId,
+            avatarUrl: avatarUrl ?? existingByEmail.avatarUrl,
+            isAdmin: existingByEmail.isAdmin || email.toLowerCase() === configuredAdminEmail,
+          })
           .where(eq(usersTable.id, existingByEmail.id))
           .returning();
       } else {
@@ -74,7 +87,8 @@ router.get("/auth/me", async (req, res): Promise<void> => {
           .select({ adminCount: count() })
           .from(usersTable)
           .where(eq(usersTable.isAdmin, true));
-        const isFirstAdmin = Number(adminCount) === 0;
+        const isFirstAdmin =
+          Number(adminCount) === 0 || email.toLowerCase() === configuredAdminEmail;
 
         [user] = await db
           .insert(usersTable)

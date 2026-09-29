@@ -408,6 +408,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/DislikeResponse"
 
+  /posts/{postId}/share:
+    post:
+      operationId: sharePost
+      tags: [posts]
+      summary: Record a post share
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Share recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareResponse"
+
   /posts/{postId}/comments:
     get:
       operationId: listComments
@@ -784,15 +803,19 @@ components:
           type: integer
         commentCount:
           type: integer
+        shareCount:
+          type: integer
         isLiked:
           type: boolean
         isDisliked:
+          type: boolean
+        isShared:
           type: boolean
         author:
           $ref: "#/components/schemas/User"
         createdAt:
           type: string
-      required: [id, userId, content, likeCount, dislikeCount, commentCount, isLiked, isDisliked, author, createdAt]
+      required: [id, userId, content, likeCount, dislikeCount, commentCount, shareCount, isLiked, isDisliked, isShared, author, createdAt]
 
     CreatePostBody:
       type: object
@@ -836,7 +859,9 @@ components:
           type: boolean
         likeCount:
           type: integer
-      required: [liked, likeCount]
+        dislikeCount:
+          type: integer
+      required: [liked, likeCount, dislikeCount]
 
     DislikeResponse:
       type: object
@@ -845,7 +870,18 @@ components:
           type: boolean
         dislikeCount:
           type: integer
-      required: [disliked, dislikeCount]
+        likeCount:
+          type: integer
+      required: [disliked, dislikeCount, likeCount]
+
+    ShareResponse:
+      type: object
+      properties:
+        shared:
+          type: boolean
+        shareCount:
+          type: integer
+      required: [shared, shareCount]
 
     FeedStats:
       type: object

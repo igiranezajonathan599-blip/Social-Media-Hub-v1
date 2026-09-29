@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { formatDistanceToNow } from "date-fns";
-import { Heart, ThumbsDown, MessageCircle, MoreHorizontal, Send } from "lucide-react";
+import { Heart, ThumbsDown, MessageCircle, MoreHorizontal, Send, Share2 } from "lucide-react";
 import {
   useLikePost,
   useDislikePost,
+  useSharePost,
   useListComments,
   useAddComment,
   useDeletePost,
@@ -19,6 +20,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export default function PostCard({
   post,
@@ -30,11 +32,13 @@ export default function PostCard({
   currentUser?: any;
 }) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
 
   const likePost = useLikePost();
   const dislikePost = useDislikePost();
+  const sharePost = useSharePost();
   const deletePost = useDeletePost();
   const addComment = useAddComment();
 
@@ -54,17 +58,23 @@ export default function PostCard({
             if (!old) return old;
             return old.map((p: any) => {
               if (p.id === post.id) {
-                const wasDisliked = p.isDisliked;
                 return {
                   ...p,
                   isLiked: data.liked,
                   likeCount: data.likeCount,
                   isDisliked: data.liked ? false : p.isDisliked,
-                  dislikeCount: data.liked && wasDisliked ? Math.max(0, p.dislikeCount - 1) : p.dislikeCount,
+                  dislikeCount: data.dislikeCount,
                 };
               }
               return p;
             });
+          });
+        },
+        onError: () => {
+          toast({
+            title: "Like failed",
+            description: "Your like could not be saved. Please try again.",
+            variant: "destructive",
           });
         },
       }
@@ -80,21 +90,90 @@ export default function PostCard({
             if (!old) return old;
             return old.map((p: any) => {
               if (p.id === post.id) {
-                const wasLiked = p.isLiked;
                 return {
                   ...p,
                   isDisliked: data.disliked,
                   dislikeCount: data.dislikeCount,
                   isLiked: data.disliked ? false : p.isLiked,
-                  likeCount: data.disliked && wasLiked ? Math.max(0, p.likeCount - 1) : p.likeCount,
+                  likeCount: data.likeCount,
                 };
               }
               return p;
             });
           });
         },
+        onError: () => {
+          toast({
+            title: "Dislike failed",
+            description: "Your dislike could not be saved. Please try again.",
+            variant: "destructive",
+          });
+        },
       }
     );
+  };
+
+  const handleShare = async () => {
+    const shareUrl = new URL(`/feed?post=${post.id}`, window.location.origin).toString();
+    const navigatorWithShare = navigator as Navigator & { share?: Navigator["share"] };
+    const canNativeShare = typeof navigatorWithShare.share === "function";
+
+    try {
+      if (canNativeShare) {
+        await navigatorWithShare.share!({
+          title: `${post.author.displayName}'s post`,
+          text: post.content,
+          url: shareUrl,
+        });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const input = document.createElement("textarea");
+        input.value = shareUrl;
+        input.style.position = "fixed";
+        input.style.opacity = "0";
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        input.remove();
+      }
+
+      sharePost.mutate(
+        { postId: post.id },
+        {
+          onSuccess: (data) => {
+            queryClient.setQueryData(getListPostsQueryKey(), (old: any) => {
+              if (!old) return old;
+              return old.map((p: any) =>
+                p.id === post.id
+                  ? { ...p, isShared: data.shared, shareCount: data.shareCount }
+                  : p,
+              );
+            });
+            toast({
+              title: canNativeShare ? "Post shared" : "Link copied",
+              description: canNativeShare
+                ? "The post was shared successfully."
+                : "The post link is ready to paste.",
+            });
+          },
+          onError: () => {
+            toast({
+              title: "Share failed",
+              description: "The post could not be recorded as shared. Please try again.",
+              variant: "destructive",
+            });
+          },
+        },
+      );
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast({
+        title: "Share failed",
+        description: "The share link could not be copied. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleAddComment = (e: React.FormEvent) => {
@@ -108,6 +187,13 @@ export default function PostCard({
           setCommentText("");
           queryClient.invalidateQueries({ queryKey: getListCommentsQueryKey(post.id) });
           queryClient.invalidateQueries({ queryKey: getListPostsQueryKey() });
+        },
+        onError: () => {
+          toast({
+            title: "Comment failed",
+            description: "Your comment could not be posted. Please try again.",
+            variant: "destructive",
+          });
         },
       }
     );
@@ -232,6 +318,21 @@ export default function PostCard({
           >
             <MessageCircle className="h-5 w-5" />
             <span className="font-medium">{post.commentCount > 0 ? post.commentCount : "Comment"}</span>
+          </Button>
+
+          <Button
+            variant="ghost"
+            className={cn(
+              "flex-1 flex gap-2 h-10 transition-colors",
+              post.isShared
+                ? "text-primary hover:text-primary hover:bg-primary/10"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/5",
+            )}
+            onClick={handleShare}
+            disabled={sharePost.isPending}
+          >
+            <Share2 className="h-5 w-5" />
+            <span className="font-medium">{post.shareCount > 0 ? post.shareCount : "Share"}</span>
           </Button>
         </div>
 

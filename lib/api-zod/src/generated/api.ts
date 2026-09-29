@@ -294,8 +294,10 @@ export const ListPostsResponseItem = zod.object({
   likeCount: zod.number(),
   dislikeCount: zod.number(),
   commentCount: zod.number(),
+  shareCount: zod.number(),
   isLiked: zod.boolean(),
   isDisliked: zod.boolean(),
+  isShared: zod.boolean(),
   author: zod.object({
     id: zod.number(),
     username: zod.string(),
@@ -335,8 +337,10 @@ export const GetPostResponse = zod.object({
   likeCount: zod.number(),
   dislikeCount: zod.number(),
   commentCount: zod.number(),
+  shareCount: zod.number(),
   isLiked: zod.boolean(),
   isDisliked: zod.boolean(),
+  isShared: zod.boolean(),
   author: zod.object({
     id: zod.number(),
     username: zod.string(),
@@ -371,6 +375,7 @@ export const LikePostParams = zod.object({
 export const LikePostResponse = zod.object({
   liked: zod.boolean(),
   likeCount: zod.number(),
+  dislikeCount: zod.number(),
 });
 
 /**
@@ -383,6 +388,19 @@ export const DislikePostParams = zod.object({
 export const DislikePostResponse = zod.object({
   disliked: zod.boolean(),
   dislikeCount: zod.number(),
+  likeCount: zod.number(),
+});
+
+/**
+ * @summary Record a post share
+ */
+export const SharePostParams = zod.object({
+  postId: zod.coerce.number(),
+});
+
+export const SharePostResponse = zod.object({
+  shared: zod.boolean(),
+  shareCount: zod.number(),
 });
 
 /**
@@ -516,8 +534,10 @@ export const ListAdminPostsResponse = zod.object({
       likeCount: zod.number(),
       dislikeCount: zod.number(),
       commentCount: zod.number(),
+      shareCount: zod.number(),
       isLiked: zod.boolean(),
       isDisliked: zod.boolean(),
+      isShared: zod.boolean(),
       author: zod.object({
         id: zod.number(),
         username: zod.string(),
