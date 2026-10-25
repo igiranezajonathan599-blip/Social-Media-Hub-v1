@@ -27,10 +27,17 @@ app.use(
   }),
 );
 
+// CORS MUST come before Clerk proxy and body parsers
+app.use(
+  cors({
+    origin: "https://social-media-hub-k58t.onrender.com",
+    credentials: true,
+  }),
+);
+
 // Clerk proxy must come before body parsers (streams raw bytes)
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
-app.use(cors({ credentials: true, origin: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
