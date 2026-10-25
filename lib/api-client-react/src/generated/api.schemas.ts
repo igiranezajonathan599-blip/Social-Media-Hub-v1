@@ -110,11 +110,9 @@ export interface Post {
   mediaUrl?: string | null;
   mediaType?: string | null;
   likeCount: number;
-  dislikeCount: number;
   commentCount: number;
-  shareCount: number;
   isLiked: boolean;
-  isDisliked: boolean;
+  shareCount: number;
   isShared: boolean;
   author: User;
   createdAt: string;
@@ -141,13 +139,6 @@ export interface AddCommentBody {
 
 export interface LikeResponse {
   liked: boolean;
-  likeCount: number;
-  dislikeCount: number;
-}
-
-export interface DislikeResponse {
-  disliked: boolean;
-  dislikeCount: number;
   likeCount: number;
 }
 
@@ -185,6 +176,26 @@ export interface AdminPostsResponse {
   pageSize: number;
 }
 
+export type AdminCommentPost = {
+  id: number;
+  content: string;
+};
+
+export interface AdminComment {
+  id: number;
+  content: string;
+  createdAt: string;
+  author: User;
+  post: AdminCommentPost;
+}
+
+export interface AdminCommentsResponse {
+  comments: AdminComment[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export type SearchUsersParams = {
   q?: string;
 };
@@ -210,5 +221,9 @@ export type ListAdminUsersParams = {
 };
 
 export type ListAdminPostsParams = {
+  page?: number;
+};
+
+export type ListAdminCommentsParams = {
   page?: number;
 };

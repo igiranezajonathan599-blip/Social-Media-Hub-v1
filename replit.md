@@ -25,7 +25,7 @@ A full-stack social communication platform where users can post, like, comment, 
 ## Where things live
 
 - `lib/api-spec/openapi.yaml` — source of truth for all API contracts
-- `lib/db/src/schema/` — Drizzle schema (users, posts, comments, likes, dislikes, conversations, messages)
+- `lib/db/src/schema/` — Drizzle schema (users, posts, comments, likes, conversations, messages)
 - `lib/api-zod/src/generated/` — generated Zod schemas (do not edit); index exports only `./generated/api`
 - `lib/api-client-react/src/generated/api.ts` — generated React Query hooks (do not edit)
 - `artifacts/api-server/src/routes/` — Express route handlers (auth, posts, conversations, admin)
@@ -49,7 +49,7 @@ A full-stack social communication platform where users can post, like, comment, 
 
 ## Product
 
-- **Feed** — create posts (text + image URL), like/unlike, dislike/undislike (mutual exclusive with like), comment in-thread
+- **Feed** — create posts (text + image URL), like/unlike, comment in-thread
 - **Messages** — direct messages with image/video URL sending, 100-sticker picker (10 categories), edit message (hover → pencil icon), delete message (hover → trash icon), real-time polling (3s)
 - **Profiles** — view any user's posts, bio, avatar; edit own display name, bio, avatar URL
 - **Auth** — Clerk-powered: email/password with email verification + Google OAuth; `/sign-in` and `/sign-up` routes; protected routes redirect to `/sign-in`

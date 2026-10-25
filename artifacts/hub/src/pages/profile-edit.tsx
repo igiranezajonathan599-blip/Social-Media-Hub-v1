@@ -2,9 +2,14 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useGetMe, getGetMeQueryKey, getGetUserByIdQueryKey, useUpdateProfile } from "@workspace/api-client-react";
+import {
+  useGetMe,
+  getGetMeQueryKey,
+  getGetUserByIdQueryKey,
+  getListPostsQueryKey,
+  useUpdateProfile,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,7 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
-import { Loader2, User, Save } from "lucide-react";
+import { Loader2, User, Save, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
@@ -24,7 +29,6 @@ const formSchema = z.object({
 export default function ProfileEdit({ user }: { user: any }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [, setLocation] = useLocation();
 
   const { data: me, isLoading } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
   const updateProfile = useUpdateProfile();
@@ -54,23 +58,20 @@ export default function ProfileEdit({ user }: { user: any }) {
         data: {
           displayName: values.displayName,
           bio: values.bio || undefined,
-          avatarUrl: values.avatarUrl || undefined,
+          avatarUrl: values.avatarUrl,
         }
       },
       {
         onSuccess: () => {
-          const meId = (me as any)?.id;
           queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-          if (meId) {
-            queryClient.invalidateQueries({ queryKey: getGetUserByIdQueryKey(meId) });
+          if ((me as any)?.id) {
+            queryClient.invalidateQueries({ queryKey: getGetUserByIdQueryKey((me as any).id) });
           }
+          queryClient.invalidateQueries({ queryKey: getListPostsQueryKey() });
           toast({
             title: "Profile updated",
             description: "Your profile has been saved successfully.",
           });
-          if (meId) {
-            setLocation(`/profile/${meId}`);
-          }
         },
         onError: (error: any) => {
           toast({
@@ -97,21 +98,9 @@ export default function ProfileEdit({ user }: { user: any }) {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-xl mx-auto px-4 py-8">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Edit Profile</h1>
-            <p className="text-muted-foreground text-sm mt-1">Manage your public profile information</p>
-          </div>
-          {(me as any)?.id && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setLocation(`/profile/${(me as any).id}`)}
-              className="shrink-0"
-            >
-              View Profile
-            </Button>
-          )}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold tracking-tight">Edit Profile</h1>
+          <p className="text-muted-foreground text-sm mt-1">Manage your public profile information</p>
         </div>
 
         {/* Avatar Preview */}
@@ -182,22 +171,32 @@ export default function ProfileEdit({ user }: { user: any }) {
                   name="avatarUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Avatar URL</FormLabel>
+                        <FormLabel>Profile image link</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="https://example.com/avatar.jpg"
+                          placeholder="https://example.com/profile-photo.jpg"
                           {...field}
                           className="bg-background/50"
                           data-testid="input-avatar-url"
                         />
                       </FormControl>
                       <FormDescription className="text-xs">
-                        Paste a direct link to an image
+                        Paste a direct link to your photo. The preview above updates as you edit.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={!watchedAvatar}
+                  onClick={() => form.setValue("avatarUrl", "", { shouldDirty: true, shouldValidate: true })}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Remove profile photo
+                </Button>
 
                 <Button
                   type="submit"

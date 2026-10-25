@@ -1,14 +1,5 @@
 import { Router, type IRouter } from "express";
-import {
-  db,
-  postsTable,
-  usersTable,
-  likesTable,
-  dislikesTable,
-  commentsTable,
-  sharesTable,
-  messagesTable,
-} from "@workspace/db";
+import { db, postsTable, usersTable, likesTable, commentsTable, sharesTable, messagesTable } from "@workspace/db";
 import { eq, desc, and, count, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
@@ -34,11 +25,6 @@ async function formatPost(post: typeof postsTable.$inferSelect, userId: number) 
     .from(likesTable)
     .where(eq(likesTable.postId, post.id));
 
-  const [{ dislikeCount }] = await db
-    .select({ dislikeCount: count() })
-    .from(dislikesTable)
-    .where(eq(dislikesTable.postId, post.id));
-
   const [{ commentCount }] = await db
     .select({ commentCount: count() })
     .from(commentsTable)
@@ -54,11 +40,6 @@ async function formatPost(post: typeof postsTable.$inferSelect, userId: number) 
     .from(likesTable)
     .where(and(eq(likesTable.postId, post.id), eq(likesTable.userId, userId)));
 
-  const userDislike = await db
-    .select()
-    .from(dislikesTable)
-    .where(and(eq(dislikesTable.postId, post.id), eq(dislikesTable.userId, userId)));
-
   const userShare = await db
     .select()
     .from(sharesTable)
@@ -71,11 +52,9 @@ async function formatPost(post: typeof postsTable.$inferSelect, userId: number) 
     mediaUrl: post.mediaUrl,
     mediaType: post.mediaType,
     likeCount: Number(likeCount),
-    dislikeCount: Number(dislikeCount),
     commentCount: Number(commentCount),
-    shareCount: Number(shareCount),
     isLiked: userLike.length > 0,
-    isDisliked: userDislike.length > 0,
+    shareCount: Number(shareCount),
     isShared: userShare.length > 0,
     author: formatUser(author),
     createdAt: post.createdAt.toISOString(),
@@ -135,10 +114,6 @@ router.delete("/posts/:postId", requireAuth, async (req, res): Promise<void> => 
   const userId = req.userId!;
   const rawId = Array.isArray(req.params.postId) ? req.params.postId[0] : req.params.postId;
   const postId = parseInt(rawId, 10);
-  if (!Number.isInteger(postId) || postId < 1) {
-    res.status(400).json({ error: "Invalid post ID" });
-    return;
-  }
 
   const [post] = await db.select().from(postsTable).where(eq(postsTable.id, postId));
   if (!post) {
@@ -152,7 +127,6 @@ router.delete("/posts/:postId", requireAuth, async (req, res): Promise<void> => 
 
   await db.delete(commentsTable).where(eq(commentsTable.postId, postId));
   await db.delete(likesTable).where(eq(likesTable.postId, postId));
-  await db.delete(dislikesTable).where(eq(dislikesTable.postId, postId));
   await db.delete(sharesTable).where(eq(sharesTable.postId, postId));
   await db.delete(postsTable).where(eq(postsTable.id, postId));
 
@@ -162,7 +136,7 @@ router.delete("/posts/:postId", requireAuth, async (req, res): Promise<void> => 
 router.post("/posts/:postId/like", requireAuth, async (req, res): Promise<void> => {
   const userId = req.userId!;
   const rawId = Array.isArray(req.params.postId) ? req.params.postId[0] : req.params.postId;
-  const postId = parseInt(rawId as string, 10);
+  const postId = parseInt(rawId, 10);
   if (!Number.isInteger(postId) || postId < 1) {
     res.status(400).json({ error: "Invalid post ID" });
     return;
@@ -183,8 +157,6 @@ router.post("/posts/:postId/like", requireAuth, async (req, res): Promise<void> 
     await db.delete(likesTable).where(and(eq(likesTable.postId, postId), eq(likesTable.userId, userId)));
     liked = false;
   } else {
-    // Remove dislike if exists when liking
-    await db.delete(dislikesTable).where(and(eq(dislikesTable.postId, postId), eq(dislikesTable.userId, userId)));
     await db.insert(likesTable).values({ postId, userId });
     liked = true;
   }
@@ -194,55 +166,35 @@ router.post("/posts/:postId/like", requireAuth, async (req, res): Promise<void> 
     .from(likesTable)
     .where(eq(likesTable.postId, postId));
 
-  const [{ dislikeCount }] = await db
-    .select({ dislikeCount: count() })
-    .from(dislikesTable)
-    .where(eq(dislikesTable.postId, postId));
-
-  res.json({ liked, likeCount: Number(likeCount), dislikeCount: Number(dislikeCount) });
+  res.json({ liked, likeCount: Number(likeCount) });
 });
 
-router.post("/posts/:postId/dislike", requireAuth, async (req, res): Promise<void> => {
+router.post("/posts/:postId/share", requireAuth, async (req, res): Promise<void> => {
   const userId = req.userId!;
   const rawId = Array.isArray(req.params.postId) ? req.params.postId[0] : req.params.postId;
-  const postId = parseInt(rawId as string, 10);
+  const postId = parseInt(rawId, 10);
   if (!Number.isInteger(postId) || postId < 1) {
     res.status(400).json({ error: "Invalid post ID" });
     return;
   }
+
   const [post] = await db.select({ id: postsTable.id }).from(postsTable).where(eq(postsTable.id, postId));
   if (!post) {
     res.status(404).json({ error: "Post not found" });
     return;
   }
 
-  const existing = await db
-    .select()
-    .from(dislikesTable)
-    .where(and(eq(dislikesTable.postId, postId), eq(dislikesTable.userId, userId)));
+  await db
+    .insert(sharesTable)
+    .values({ postId, userId })
+    .onConflictDoNothing();
 
-  let disliked: boolean;
-  if (existing.length > 0) {
-    await db.delete(dislikesTable).where(and(eq(dislikesTable.postId, postId), eq(dislikesTable.userId, userId)));
-    disliked = false;
-  } else {
-    // Remove like if exists when disliking
-    await db.delete(likesTable).where(and(eq(likesTable.postId, postId), eq(likesTable.userId, userId)));
-    await db.insert(dislikesTable).values({ postId, userId });
-    disliked = true;
-  }
+  const [{ shareCount }] = await db
+    .select({ shareCount: count() })
+    .from(sharesTable)
+    .where(eq(sharesTable.postId, postId));
 
-  const [{ dislikeCount }] = await db
-    .select({ dislikeCount: count() })
-    .from(dislikesTable)
-    .where(eq(dislikesTable.postId, postId));
-
-  const [{ likeCount }] = await db
-    .select({ likeCount: count() })
-    .from(likesTable)
-    .where(eq(likesTable.postId, postId));
-
-  res.json({ disliked, dislikeCount: Number(dislikeCount), likeCount: Number(likeCount) });
+  res.json({ shared: true, shareCount: Number(shareCount) });
 });
 
 router.get("/posts/:postId/comments", requireAuth, async (req, res): Promise<void> => {
@@ -286,8 +238,19 @@ router.post("/posts/:postId/comments", requireAuth, async (req, res): Promise<vo
   const rawId = Array.isArray(req.params.postId) ? req.params.postId[0] : req.params.postId;
   const postId = parseInt(rawId, 10);
 
-  const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
-  if (!content) {
+  if (!Number.isInteger(postId) || postId < 1) {
+    res.status(400).json({ error: "Invalid post ID" });
+    return;
+  }
+  const [post] = await db.select({ id: postsTable.id }).from(postsTable).where(eq(postsTable.id, postId));
+  if (!post) {
+    res.status(404).json({ error: "Post not found" });
+    return;
+  }
+
+  const rawContent = (req.body as { content?: unknown } | undefined)?.content;
+  const content = typeof rawContent === "string" ? rawContent.trim() : "";
+  if (!content || content.length > 2000) {
     res.status(400).json({ error: "Content is required" });
     return;
   }
@@ -307,38 +270,6 @@ router.post("/posts/:postId/comments", requireAuth, async (req, res): Promise<vo
     author: formatUser(author),
     createdAt: comment.createdAt.toISOString(),
   });
-});
-
-router.post("/posts/:postId/share", requireAuth, async (req, res): Promise<void> => {
-  const userId = req.userId!;
-  const rawId = Array.isArray(req.params.postId) ? req.params.postId[0] : req.params.postId;
-  const postId = parseInt(rawId, 10);
-  if (!Number.isInteger(postId) || postId < 1) {
-    res.status(400).json({ error: "Invalid post ID" });
-    return;
-  }
-
-  const [post] = await db.select({ id: postsTable.id }).from(postsTable).where(eq(postsTable.id, postId));
-  if (!post) {
-    res.status(404).json({ error: "Post not found" });
-    return;
-  }
-
-  const existing = await db
-    .select({ id: sharesTable.id })
-    .from(sharesTable)
-    .where(and(eq(sharesTable.postId, postId), eq(sharesTable.userId, userId)));
-
-  if (existing.length === 0) {
-    await db.insert(sharesTable).values({ postId, userId }).onConflictDoNothing();
-  }
-
-  const [{ shareCount }] = await db
-    .select({ shareCount: count() })
-    .from(sharesTable)
-    .where(eq(sharesTable.postId, postId));
-
-  res.json({ shared: true, shareCount: Number(shareCount) });
 });
 
 router.get("/feed/stats", requireAuth, async (req, res): Promise<void> => {

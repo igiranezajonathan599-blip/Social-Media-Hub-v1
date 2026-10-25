@@ -1,16 +1,6 @@
 import { Router, type IRouter } from "express";
-import {
-  db,
-  usersTable,
-  postsTable,
-  messagesTable,
-  conversationsTable,
-  commentsTable,
-  likesTable,
-  dislikesTable,
-  sharesTable,
-} from "@workspace/db";
-import { eq, desc, count, gte, ilike, or, sql } from "drizzle-orm";
+import { db, usersTable, postsTable, messagesTable, conversationsTable, commentsTable, likesTable, sharesTable } from "@workspace/db";
+import { eq, desc, count, gte, ilike, or, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -93,16 +83,75 @@ router.delete("/admin/users/:userId", requireAuth, requireAdmin, async (req, res
     return;
   }
 
-  await db.delete(likesTable).where(eq(likesTable.userId, userId));
-  await db.delete(dislikesTable).where(eq(dislikesTable.userId, userId));
-  await db.delete(sharesTable).where(eq(sharesTable.userId, userId));
-  await db.delete(commentsTable).where(eq(commentsTable.userId, userId));
-  await db.delete(messagesTable).where(eq(messagesTable.senderId, userId));
-  await db.delete(postsTable).where(eq(postsTable.userId, userId));
-  await db.delete(conversationsTable).where(
-    or(eq(conversationsTable.participantAId, userId), eq(conversationsTable.participantBId, userId))
-  );
-  await db.delete(usersTable).where(eq(usersTable.id, userId));
+  const [targetUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!targetUser) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  if (targetUser.isAdmin) {
+    const [{ adminCount }] = await db
+      .select({ adminCount: count() })
+      .from(usersTable)
+      .where(eq(usersTable.isAdmin, true));
+    if (Number(adminCount) <= 1) {
+      res.status(409).json({ error: "The last admin cannot be deleted" });
+      return;
+    }
+  }
+
+  await db.transaction(async (tx) => {
+    const ownedPosts = await tx
+      .select({ id: postsTable.id })
+      .from(postsTable)
+      .where(eq(postsTable.userId, userId));
+    const postIds = ownedPosts.map((post) => post.id);
+
+    const conversations = await tx
+      .select({ id: conversationsTable.id })
+      .from(conversationsTable)
+      .where(
+        or(
+          eq(conversationsTable.participantAId, userId),
+          eq(conversationsTable.participantBId, userId),
+        ),
+      );
+    const conversationIds = conversations.map((conversation) => conversation.id);
+
+    await tx.delete(messagesTable).where(
+      conversationIds.length > 0
+        ? or(
+            eq(messagesTable.senderId, userId),
+            inArray(messagesTable.conversationId, conversationIds),
+          )
+        : eq(messagesTable.senderId, userId),
+    );
+
+    await tx.delete(commentsTable).where(
+      postIds.length > 0
+        ? or(eq(commentsTable.userId, userId), inArray(commentsTable.postId, postIds))
+        : eq(commentsTable.userId, userId),
+    );
+
+    await tx.delete(likesTable).where(
+      postIds.length > 0
+        ? or(eq(likesTable.userId, userId), inArray(likesTable.postId, postIds))
+        : eq(likesTable.userId, userId),
+    );
+
+    await tx.delete(sharesTable).where(
+      postIds.length > 0
+        ? or(eq(sharesTable.userId, userId), inArray(sharesTable.postId, postIds))
+        : eq(sharesTable.userId, userId),
+    );
+
+    if (postIds.length > 0) {
+      await tx.delete(postsTable).where(inArray(postsTable.id, postIds));
+    }
+    if (conversationIds.length > 0) {
+      await tx.delete(conversationsTable).where(inArray(conversationsTable.id, conversationIds));
+    }
+    await tx.delete(usersTable).where(eq(usersTable.id, userId));
+  });
 
   res.json({ message: "User deleted" });
 });
@@ -122,6 +171,17 @@ router.patch("/admin/users/:userId", requireAuth, requireAdmin, async (req, res)
   if (!user) {
     res.status(404).json({ error: "User not found" });
     return;
+  }
+
+  if (user.isAdmin) {
+    const [{ adminCount }] = await db
+      .select({ adminCount: count() })
+      .from(usersTable)
+      .where(eq(usersTable.isAdmin, true));
+    if (Number(adminCount) <= 1) {
+      res.status(409).json({ error: "The last admin cannot be demoted" });
+      return;
+    }
   }
 
   const [updated] = await db
@@ -148,6 +208,7 @@ router.get("/admin/posts", requireAuth, requireAdmin, async (req, res): Promise<
       const [author] = await db.select().from(usersTable).where(eq(usersTable.id, post.userId));
       const [{ likeCount }] = await db.select({ likeCount: count() }).from(likesTable).where(eq(likesTable.postId, post.id));
       const [{ commentCount }] = await db.select({ commentCount: count() }).from(commentsTable).where(eq(commentsTable.postId, post.id));
+      const [{ shareCount }] = await db.select({ shareCount: count() }).from(sharesTable).where(eq(sharesTable.postId, post.id));
       return {
         id: post.id,
         userId: post.userId,
@@ -157,6 +218,8 @@ router.get("/admin/posts", requireAuth, requireAdmin, async (req, res): Promise<
         likeCount: Number(likeCount),
         commentCount: Number(commentCount),
         isLiked: false,
+        shareCount: Number(shareCount),
+        isShared: false,
         author: formatUser(author),
         createdAt: post.createdAt.toISOString(),
       };
@@ -179,12 +242,66 @@ router.delete("/admin/posts/:postId", requireAuth, requireAdmin, async (req, res
   }
 
   await db.delete(likesTable).where(eq(likesTable.postId, postId));
-  await db.delete(dislikesTable).where(eq(dislikesTable.postId, postId));
-  await db.delete(sharesTable).where(eq(sharesTable.postId, postId));
   await db.delete(commentsTable).where(eq(commentsTable.postId, postId));
+  await db.delete(sharesTable).where(eq(sharesTable.postId, postId));
   await db.delete(postsTable).where(eq(postsTable.id, postId));
 
   res.json({ message: "Post deleted" });
+});
+
+router.get("/admin/comments", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const rawPage = typeof req.query.page === "string" ? parseInt(req.query.page, 10) : 1;
+  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+  const pageSize = 20;
+  const offset = (page - 1) * pageSize;
+
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        comment: commentsTable,
+        author: usersTable,
+        post: postsTable,
+      })
+      .from(commentsTable)
+      .innerJoin(usersTable, eq(commentsTable.userId, usersTable.id))
+      .innerJoin(postsTable, eq(commentsTable.postId, postsTable.id))
+      .orderBy(desc(commentsTable.createdAt))
+      .limit(pageSize)
+      .offset(offset),
+    db.select({ total: count() }).from(commentsTable),
+  ]);
+
+  res.json({
+    comments: rows.map(({ comment, author, post }) => ({
+      id: comment.id,
+      content: comment.content,
+      createdAt: comment.createdAt.toISOString(),
+      author: formatUser(author),
+      post: { id: post.id, content: post.content },
+    })),
+    total: Number(total),
+    page,
+    pageSize,
+  });
+});
+
+router.delete("/admin/comments/:commentId", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const commentId = parseInt(req.params["commentId"] as string, 10);
+  if (!Number.isInteger(commentId) || commentId < 1) {
+    res.status(400).json({ error: "Invalid comment ID" });
+    return;
+  }
+
+  const [deleted] = await db
+    .delete(commentsTable)
+    .where(eq(commentsTable.id, commentId))
+    .returning({ id: commentsTable.id });
+  if (!deleted) {
+    res.status(404).json({ error: "Comment not found" });
+    return;
+  }
+
+  res.json({ message: "Comment deleted" });
 });
 
 export default router;

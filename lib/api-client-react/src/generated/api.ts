@@ -18,6 +18,7 @@ import type {
 
 import type {
   AddCommentBody,
+  AdminCommentsResponse,
   AdminPostsResponse,
   AdminStats,
   AdminUsersResponse,
@@ -27,11 +28,11 @@ import type {
   ConversationSummary,
   CreateConversationBody,
   CreatePostBody,
-  DislikeResponse,
   EditMessageBody,
   FeedStats,
   HealthStatus,
   LikeResponse,
+  ListAdminCommentsParams,
   ListAdminPostsParams,
   ListAdminUsersParams,
   ListMessagesParams,
@@ -1708,91 +1709,7 @@ export const useLikePost = <
 };
 
 /**
- * @summary Dislike a post (toggle)
- */
-export const getDislikePostUrl = (postId: number) => {
-  return `/api/posts/${postId}/dislike`;
-};
-
-export const dislikePost = async (
-  postId: number,
-  options?: RequestInit,
-): Promise<DislikeResponse> => {
-  return customFetch<DislikeResponse>(getDislikePostUrl(postId), {
-    ...options,
-    method: "POST",
-  });
-};
-
-export const getDislikePostMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof dislikePost>>,
-    TError,
-    { postId: number },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof dislikePost>>,
-  TError,
-  { postId: number },
-  TContext
-> => {
-  const mutationKey = ["dislikePost"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof dislikePost>>,
-    { postId: number }
-  > = (props) => {
-    const { postId } = props ?? {};
-
-    return dislikePost(postId, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type DislikePostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof dislikePost>>
->;
-
-export type DislikePostMutationError = ErrorType<unknown>;
-
-/**
- * @summary Dislike a post (toggle)
- */
-export const useDislikePost = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof dislikePost>>,
-    TError,
-    { postId: number },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof dislikePost>>,
-  TError,
-  { postId: number },
-  TContext
-> => {
-  return useMutation(getDislikePostMutationOptions(options));
-};
-
-/**
- * @summary Record a post share
+ * @summary Register a post share
  */
 export const getSharePostUrl = (postId: number) => {
   return `/api/posts/${postId}/share`;
@@ -1853,7 +1770,7 @@ export type SharePostMutationResult = NonNullable<
 export type SharePostMutationError = ErrorType<unknown>;
 
 /**
- * @summary Record a post share
+ * @summary Register a post share
  */
 export const useSharePost = <
   TError = ErrorType<unknown>,
@@ -2637,4 +2554,185 @@ export const useAdminDeletePost = <
   TContext
 > => {
   return useMutation(getAdminDeletePostMutationOptions(options));
+};
+
+/**
+ * @summary List comments for moderation (admin only)
+ */
+export const getListAdminCommentsUrl = (params?: ListAdminCommentsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/admin/comments?${stringifiedParams}`
+    : `/api/admin/comments`;
+};
+
+export const listAdminComments = async (
+  params?: ListAdminCommentsParams,
+  options?: RequestInit,
+): Promise<AdminCommentsResponse> => {
+  return customFetch<AdminCommentsResponse>(getListAdminCommentsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListAdminCommentsQueryKey = (
+  params?: ListAdminCommentsParams,
+) => {
+  return [`/api/admin/comments`, ...(params ? [params] : [])] as const;
+};
+
+export const getListAdminCommentsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAdminComments>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListAdminCommentsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listAdminComments>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListAdminCommentsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listAdminComments>>
+  > = ({ signal }) => listAdminComments(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAdminComments>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAdminCommentsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAdminComments>>
+>;
+export type ListAdminCommentsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List comments for moderation (admin only)
+ */
+
+export function useListAdminComments<
+  TData = Awaited<ReturnType<typeof listAdminComments>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListAdminCommentsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listAdminComments>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAdminCommentsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Delete a comment (admin only)
+ */
+export const getAdminDeleteCommentUrl = (commentId: number) => {
+  return `/api/admin/comments/${commentId}`;
+};
+
+export const adminDeleteComment = async (
+  commentId: number,
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getAdminDeleteCommentUrl(commentId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getAdminDeleteCommentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminDeleteComment>>,
+    TError,
+    { commentId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminDeleteComment>>,
+  TError,
+  { commentId: number },
+  TContext
+> => {
+  const mutationKey = ["adminDeleteComment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminDeleteComment>>,
+    { commentId: number }
+  > = (props) => {
+    const { commentId } = props ?? {};
+
+    return adminDeleteComment(commentId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminDeleteCommentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminDeleteComment>>
+>;
+
+export type AdminDeleteCommentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a comment (admin only)
+ */
+export const useAdminDeleteComment = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminDeleteComment>>,
+    TError,
+    { commentId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminDeleteComment>>,
+  TError,
+  { commentId: number },
+  TContext
+> => {
+  return useMutation(getAdminDeleteCommentMutationOptions(options));
 };

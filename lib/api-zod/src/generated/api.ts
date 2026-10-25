@@ -292,11 +292,9 @@ export const ListPostsResponseItem = zod.object({
   mediaUrl: zod.string().nullish(),
   mediaType: zod.string().nullish(),
   likeCount: zod.number(),
-  dislikeCount: zod.number(),
   commentCount: zod.number(),
-  shareCount: zod.number(),
   isLiked: zod.boolean(),
-  isDisliked: zod.boolean(),
+  shareCount: zod.number(),
   isShared: zod.boolean(),
   author: zod.object({
     id: zod.number(),
@@ -335,11 +333,9 @@ export const GetPostResponse = zod.object({
   mediaUrl: zod.string().nullish(),
   mediaType: zod.string().nullish(),
   likeCount: zod.number(),
-  dislikeCount: zod.number(),
   commentCount: zod.number(),
-  shareCount: zod.number(),
   isLiked: zod.boolean(),
-  isDisliked: zod.boolean(),
+  shareCount: zod.number(),
   isShared: zod.boolean(),
   author: zod.object({
     id: zod.number(),
@@ -375,24 +371,10 @@ export const LikePostParams = zod.object({
 export const LikePostResponse = zod.object({
   liked: zod.boolean(),
   likeCount: zod.number(),
-  dislikeCount: zod.number(),
 });
 
 /**
- * @summary Dislike a post (toggle)
- */
-export const DislikePostParams = zod.object({
-  postId: zod.coerce.number(),
-});
-
-export const DislikePostResponse = zod.object({
-  disliked: zod.boolean(),
-  dislikeCount: zod.number(),
-  likeCount: zod.number(),
-});
-
-/**
- * @summary Record a post share
+ * @summary Register a post share
  */
 export const SharePostParams = zod.object({
   postId: zod.coerce.number(),
@@ -532,11 +514,9 @@ export const ListAdminPostsResponse = zod.object({
       mediaUrl: zod.string().nullish(),
       mediaType: zod.string().nullish(),
       likeCount: zod.number(),
-      dislikeCount: zod.number(),
       commentCount: zod.number(),
-      shareCount: zod.number(),
       isLiked: zod.boolean(),
-      isDisliked: zod.boolean(),
+      shareCount: zod.number(),
       isShared: zod.boolean(),
       author: zod.object({
         id: zod.number(),
@@ -564,5 +544,50 @@ export const AdminDeletePostParams = zod.object({
 });
 
 export const AdminDeletePostResponse = zod.object({
+  message: zod.string(),
+});
+
+/**
+ * @summary List comments for moderation (admin only)
+ */
+export const ListAdminCommentsQueryParams = zod.object({
+  page: zod.coerce.number().optional(),
+});
+
+export const ListAdminCommentsResponse = zod.object({
+  comments: zod.array(
+    zod.object({
+      id: zod.number(),
+      content: zod.string(),
+      createdAt: zod.string(),
+      author: zod.object({
+        id: zod.number(),
+        username: zod.string(),
+        displayName: zod.string(),
+        email: zod.string(),
+        bio: zod.string().nullish(),
+        avatarUrl: zod.string().nullish(),
+        isAdmin: zod.boolean().optional(),
+        createdAt: zod.string(),
+      }),
+      post: zod.object({
+        id: zod.number(),
+        content: zod.string(),
+      }),
+    }),
+  ),
+  total: zod.number(),
+  page: zod.number(),
+  pageSize: zod.number(),
+});
+
+/**
+ * @summary Delete a comment (admin only)
+ */
+export const AdminDeleteCommentParams = zod.object({
+  commentId: zod.coerce.number(),
+});
+
+export const AdminDeleteCommentResponse = zod.object({
   message: zod.string(),
 });

@@ -1,13 +1,10 @@
 import { Router, type IRouter } from "express";
-import { getAuth, createClerkClient } from "@clerk/express";
+import { getAuth, clerkClient } from "@clerk/express";
 import { db, usersTable } from "@workspace/db";
-import { eq, count } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
-
-const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
-const configuredAdminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
 
 function formatUser(user: typeof usersTable.$inferSelect) {
   return {
@@ -32,18 +29,10 @@ router.get("/auth/me", async (req, res): Promise<void> => {
 
   let [user] = await db.select().from(usersTable).where(eq(usersTable.clerkId, auth.userId));
 
-  if (user && configuredAdminEmail && user.email.toLowerCase() === configuredAdminEmail && !user.isAdmin) {
-    [user] = await db
-      .update(usersTable)
-      .set({ isAdmin: true })
-      .where(eq(usersTable.id, user.id))
-      .returning();
-  }
-
   if (!user) {
     // First time — fetch Clerk user data and create DB record
     try {
-      const clerkUser = await clerk.users.getUser(auth.userId);
+      const clerkUser = await clerkClient.users.getUser(auth.userId);
       const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
       const displayName =
         clerkUser.fullName ||
@@ -60,11 +49,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
       if (existingByEmail) {
         [user] = await db
           .update(usersTable)
-          .set({
-            clerkId: auth.userId,
-            avatarUrl: avatarUrl ?? existingByEmail.avatarUrl,
-            isAdmin: existingByEmail.isAdmin || email.toLowerCase() === configuredAdminEmail,
-          })
+          .set({ clerkId: auth.userId, avatarUrl: avatarUrl ?? existingByEmail.avatarUrl })
           .where(eq(usersTable.id, existingByEmail.id))
           .returning();
       } else {
@@ -82,17 +67,9 @@ router.get("/auth/me", async (req, res): Promise<void> => {
           username = `${username}${Date.now().toString().slice(-4)}`;
         }
 
-        // Auto-grant admin to the very first user registered (no admins exist yet)
-        const [{ adminCount }] = await db
-          .select({ adminCount: count() })
-          .from(usersTable)
-          .where(eq(usersTable.isAdmin, true));
-        const isFirstAdmin =
-          Number(adminCount) === 0 || email.toLowerCase() === configuredAdminEmail;
-
         [user] = await db
           .insert(usersTable)
-          .values({ clerkId: auth.userId, username, displayName, email, avatarUrl, isAdmin: isFirstAdmin })
+          .values({ clerkId: auth.userId, username, displayName, email, avatarUrl })
           .returning();
       }
     } catch (err) {

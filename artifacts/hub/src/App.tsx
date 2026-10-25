@@ -18,11 +18,7 @@ import Admin from "@/pages/admin";
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: {
-      retry: false,
-      refetchOnWindowFocus: false,
-      staleTime: 30 * 1000,
-    },
+    queries: { retry: false, refetchOnWindowFocus: false },
   },
 });
 
@@ -92,35 +88,8 @@ const clerkAppearance = {
 
 function RootRedirect() {
   const [, setLocation] = useLocation();
-  useEffect(() => { setLocation("/dashboard"); }, []);
+  useEffect(() => { setLocation("/feed"); }, []);
   return null;
-}
-
-function DashboardRedirect() {
-  const [, setLocation] = useLocation();
-  const { data: user, isLoading, error } = useGetMe();
-
-  useEffect(() => {
-    if (!isLoading && error) {
-      setLocation("/sign-in");
-    }
-  }, [isLoading, error, setLocation]);
-
-  useEffect(() => {
-    if (!isLoading && user) {
-      if ((user as any).isAdmin) {
-        setLocation("/admin");
-      } else {
-        setLocation(`/profile/${(user as any).id}`);
-      }
-    }
-  }, [isLoading, user, setLocation]);
-
-  return (
-    <div className="flex h-screen w-full items-center justify-center bg-background">
-      <Spinner size="lg" />
-    </div>
-  );
 }
 
 function LoginRedirect() {
@@ -129,29 +98,6 @@ function LoginRedirect() {
 
 function RegisterRedirect() {
   return <Redirect to="/sign-up" />;
-}
-
-function ProfileMeRedirect() {
-  const [, setLocation] = useLocation();
-  const { data: user, isLoading, error } = useGetMe();
-
-  useEffect(() => {
-    if (!isLoading && error) {
-      setLocation("/sign-in");
-    }
-  }, [isLoading, error, setLocation]);
-
-  useEffect(() => {
-    if (!isLoading && user) {
-      setLocation(`/profile/${(user as any).id}`);
-    }
-  }, [isLoading, user, setLocation]);
-
-  return (
-    <div className="flex h-screen w-full items-center justify-center">
-      <Spinner size="lg" />
-    </div>
-  );
 }
 
 function ProtectedRoute({ component: Component, adminOnly = false, ...rest }: any) {
@@ -197,7 +143,7 @@ function SignInPage() {
           routing="path"
           path={`${basePath}/sign-in`}
           signUpUrl={`${basePath}/sign-up`}
-          forceRedirectUrl={`${basePath}/dashboard`}
+          forceRedirectUrl={`${basePath}/feed`}
         />
       </div>
     </div>
@@ -213,7 +159,7 @@ function SignUpPage() {
           routing="path"
           path={`${basePath}/sign-up`}
           signInUrl={`${basePath}/sign-in`}
-          forceRedirectUrl={`${basePath}/dashboard`}
+          forceRedirectUrl={`${basePath}/feed`}
         />
       </div>
     </div>
@@ -253,17 +199,11 @@ function Router() {
       <Route path="/messages">
         {(params) => <ProtectedRoute component={Messages} {...params} />}
       </Route>
-      <Route path="/dashboard">
-        {() => <DashboardRedirect />}
-      </Route>
-      <Route path="/profile/me/edit">
+      <Route path="/profile/me">
         {(params) => <ProtectedRoute component={ProfileEdit} {...params} />}
       </Route>
-      <Route path="/profile/me">
-        {() => <ProfileMeRedirect />}
-      </Route>
       <Route path="/profile/:userId">
-        {(params) => <ProtectedRoute component={Profile} params={params} />}
+        {(params) => <ProtectedRoute component={Profile} {...params} />}
       </Route>
       <Route path="/admin">
         {(params) => <ProtectedRoute component={Admin} adminOnly {...params} />}

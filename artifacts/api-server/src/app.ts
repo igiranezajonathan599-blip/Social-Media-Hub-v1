@@ -1,8 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
-import helmet from "helmet";
-import rateLimit from "express-rate-limit";
 import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 import {
@@ -14,10 +12,6 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
-
-// Replit runs behind a reverse proxy — trust the first hop so rate-limit
-// can read the real client IP from X-Forwarded-For
-app.set("trust proxy", 1);
 
 app.use(
   pinoHttp({
@@ -32,31 +26,6 @@ app.use(
     },
   }),
 );
-
-app.use(
-  helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-    contentSecurityPolicy: false,
-  }),
-);
-
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 300,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many requests, please try again later." },
-});
-
-const authLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many login attempts, please try again in 10 minutes." },
-});
-
-app.use(globalLimiter);
 
 // Clerk proxy must come before body parsers (streams raw bytes)
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
@@ -73,8 +42,6 @@ app.use(
     ),
   })),
 );
-
-app.use("/api/auth", authLimiter);
 
 app.use("/api", router);
 

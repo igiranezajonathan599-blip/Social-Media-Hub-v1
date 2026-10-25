@@ -1,5 +1,13 @@
-import { useState } from "react";
-import { useListPosts, getListPostsQueryKey, useCreatePost, useGetFeedStats, getGetFeedStatsQueryKey } from "@workspace/api-client-react";
+import { useEffect, useState } from "react";
+import {
+  useListPosts,
+  getListPostsQueryKey,
+  useCreatePost,
+  useGetFeedStats,
+  getGetFeedStatsQueryKey,
+  useGetPost,
+  getGetPostQueryKey,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +27,22 @@ export default function Feed({ user }: { user: any }) {
   const { data: posts, isLoading, isFetching } = useListPosts({});
   const { data: stats } = useGetFeedStats({ query: { queryKey: getGetFeedStatsQueryKey() }});
   const createPost = useCreatePost();
+  const sharedPostParam = new URLSearchParams(window.location.search).get("post");
+  const sharedPostId = sharedPostParam && /^\d+$/.test(sharedPostParam) ? Number(sharedPostParam) : undefined;
+  const { data: linkedPost } = useGetPost(sharedPostId ?? 0, {
+    query: {
+      enabled: Boolean(sharedPostId),
+      queryKey: getGetPostQueryKey(sharedPostId ?? 0),
+    },
+  });
+  const displayedPosts = linkedPost && !(posts ?? []).some((post) => post.id === linkedPost.id)
+    ? [linkedPost, ...(posts ?? [])]
+    : posts;
+
+  useEffect(() => {
+    if (!sharedPostId || !displayedPosts?.some((post) => post.id === sharedPostId)) return;
+    document.getElementById(`post-${sharedPostId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [displayedPosts, sharedPostId]);
 
   const handleCreatePost = (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,9 +175,9 @@ export default function Feed({ user }: { user: any }) {
                 <Spinner size="lg" />
                 <p>Loading feed...</p>
               </div>
-            ) : posts && posts.length > 0 ? (
-              posts.map((post) => (
-                <PostCard key={post.id} post={post} currentUserId={user.id} currentUser={user} />
+            ) : displayedPosts && displayedPosts.length > 0 ? (
+              displayedPosts.map((post) => (
+                <PostCard key={post.id} post={post} currentUserId={user.id} />
               ))
             ) : (
               <div className="py-20 text-center flex flex-col items-center justify-center text-muted-foreground bg-card/30 rounded-2xl border border-border/30">
