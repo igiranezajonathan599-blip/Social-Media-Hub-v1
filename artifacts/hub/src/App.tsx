@@ -1,10 +1,20 @@
 import { useEffect, useRef } from "react";
-import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import {
+  Switch,
+  Route,
+  Router as WouterRouter,
+  useLocation,
+  Redirect,
+} from "wouter";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useGetMe } from "@workspace/api-client-react";
-import { ClerkProvider, SignIn, SignUp, useClerk } from "@clerk/react";
+import { useGetMe, setAuthTokenGetter } from "@workspace/api-client-react";
+import { ClerkProvider, SignIn, SignUp, useClerk, useAuth } from "@clerk/react";
 import { dark } from "@clerk/themes";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/layout";
@@ -86,9 +96,35 @@ const clerkAppearance = {
   },
 };
 
+// --- NEW: Sync Clerk token to the API client ---
+function AuthTokenSync() {
+  const { getToken, isLoaded, isSignedIn } = useAuth();
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    if (isSignedIn) {
+      setAuthTokenGetter(async () => {
+        return await getToken();
+      });
+    } else {
+      setAuthTokenGetter(null);
+    }
+
+    return () => {
+      setAuthTokenGetter(null);
+    };
+  }, [getToken, isLoaded, isSignedIn]);
+
+  return null;
+}
+// -----------------------------------------------
+
 function RootRedirect() {
   const [, setLocation] = useLocation();
-  useEffect(() => { setLocation("/feed"); }, []);
+  useEffect(() => {
+    setLocation("/feed");
+  }, []);
   return null;
 }
 
@@ -100,7 +136,11 @@ function RegisterRedirect() {
   return <Redirect to="/sign-up" />;
 }
 
-function ProtectedRoute({ component: Component, adminOnly = false, ...rest }: any) {
+function ProtectedRoute({
+  component: Component,
+  adminOnly = false,
+  ...rest
+}: any) {
   const [, setLocation] = useLocation();
   const { data: user, isLoading, error } = useGetMe();
 
@@ -174,7 +214,10 @@ function ClerkQueryClientCacheInvalidator() {
   useEffect(() => {
     const unsubscribe = addListener(({ user }) => {
       const userId = user?.id ?? null;
-      if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== userId) {
+      if (
+        prevUserIdRef.current !== undefined &&
+        prevUserIdRef.current !== userId
+      ) {
         qc.clear();
       }
       prevUserIdRef.current = userId;
@@ -228,6 +271,7 @@ function ClerkProviderWithRoutes() {
     >
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
+        <AuthTokenSync />
         <TooltipProvider>
           <Router />
           <Toaster />
