@@ -1,7 +1,7 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
-import { clerkMiddleware, authenticateRequest } from "@clerk/express";
+import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 import {
   CLERK_PROXY_PATH,
@@ -41,6 +41,7 @@ app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// clerkMiddleware attaches auth to req. No need for authenticateRequest().
 app.use(
   clerkMiddleware((req) => ({
     publishableKey: publishableKeyFromHost(
@@ -49,9 +50,6 @@ app.use(
     ),
   })),
 );
-
-// Authenticate requests so that Clerk can read the session token
-app.use(authenticateRequest());
 
 app.use("/api", router);
 
