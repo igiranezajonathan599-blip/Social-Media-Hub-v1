@@ -33,3 +33,6 @@ externalPort = 80
 
 [nix]
 channel = "stable-25_05"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-00782a48-eea5-4196-8ae4-a788c7714fca"
