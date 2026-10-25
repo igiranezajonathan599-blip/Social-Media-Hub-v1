@@ -136,19 +136,34 @@ function RegisterRedirect() {
   return <Redirect to="/sign-up" />;
 }
 
+// --- UPDATED: Wait for Clerk to load before fetching user ---
 function ProtectedRoute({
   component: Component,
   adminOnly = false,
   ...rest
 }: any) {
   const [, setLocation] = useLocation();
-  const { data: user, isLoading, error } = useGetMe();
+  const { isLoaded, isSignedIn } = useAuth();
+
+  const {
+    data: user,
+    isLoading,
+    error,
+  } = useGetMe({
+    query: {
+      enabled: isLoaded && isSignedIn,
+    },
+  });
 
   useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      setLocation("/sign-in");
+      return;
+    }
     if (!isLoading && error) {
       setLocation("/sign-in");
     }
-  }, [isLoading, error, setLocation]);
+  }, [isLoaded, isSignedIn, isLoading, error, setLocation]);
 
   useEffect(() => {
     if (!isLoading && user && adminOnly && !(user as any).isAdmin) {
@@ -156,7 +171,7 @@ function ProtectedRoute({
     }
   }, [isLoading, user, adminOnly, setLocation]);
 
-  if (isLoading) {
+  if (!isLoaded || isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Spinner size="lg" />
@@ -173,6 +188,7 @@ function ProtectedRoute({
     </Layout>
   );
 }
+// -----------------------------------------------
 
 function SignInPage() {
   return (
